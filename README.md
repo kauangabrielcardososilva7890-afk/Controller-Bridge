@@ -8,10 +8,10 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 
 ### Downloads
 
-- **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-PT-BR-v0.4.0.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-EN-v0.4.0.apk)
-- **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-PT-BR-v0.4.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-EN-v0.4.0.zip)
+- **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Android-PT-BR-v0.5.0.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Android-EN-v0.5.0.apk)
+- **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Windows-PT-BR-v0.5.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Windows-EN-v0.5.0.zip)
 
-These links point to the latest published packages (v0.4.0). The v0.5.0 source is available in this repository; its installable packages are not published yet. Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
+Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
 
 ### How it works
 
@@ -87,10 +87,10 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 
 ### Downloads
 
-- **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-PT-BR-v0.4.0.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-EN-v0.4.0.apk)
-- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-PT-BR-v0.4.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-EN-v0.4.0.zip)
+- **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Android-PT-BR-v0.5.0.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Android-EN-v0.5.0.apk)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Windows-PT-BR-v0.5.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.0/ControllerBridge-Windows-EN-v0.5.0.zip)
 
-Estes links apontam para os pacotes publicados mais recentes (v0.4.0). O código-fonte da v0.5.0 está neste repositório; seus pacotes instaláveis ainda não foram publicados. Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
+Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
 
 ### Como funciona
 
