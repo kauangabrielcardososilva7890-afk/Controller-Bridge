@@ -21,20 +21,37 @@ function Find-Adb {
     Write-Host 'https://developer.android.com/tools/releases/platform-tools'
     $answer=Read-Host (Text 'Abrir a pagina oficial para voce aceitar os termos, baixar e extrair? [S/N]' 'Open the official page so you can accept its terms, download and extract? [Y/N]')
     if ($answer -match '^(s|y)$') { Start-Process 'https://developer.android.com/tools/releases/platform-tools' }
-    $chosen=(Read-Host (Text 'Cole o caminho completo do adb.exe extraido, ou Enter para cancelar' 'Paste the full path to the extracted adb.exe, or Enter to cancel')).Trim().Trim('"')
-    if (!$chosen -or !(Test-Path -LiteralPath $chosen -PathType Leaf) -or [IO.Path]::GetFileName($chosen) -ine 'adb.exe') { Stop-Setup 'Instale/extraia o Platform Tools e inicie novamente. Nada foi instalado automaticamente.' 'Download/extract Platform Tools and start again. Nothing was installed automatically.' }
+    $chosen=(Read-Host (Text 'Cole o caminho completo do adb.exe extraido, ou Enter para abrir o host sem ADB por enquanto' 'Paste the full path to the extracted adb.exe, or press Enter to open the host without ADB for now')).Trim().Trim('"')
+    if (!$chosen) { return $null }
+    if (!(Test-Path -LiteralPath $chosen -PathType Leaf) -or [IO.Path]::GetFileName($chosen) -ine 'adb.exe') {
+        Write-Host (Text 'Esse caminho nao e um adb.exe valido. O host abrira e aguardara um ADB valido no SDK ou no PATH.' 'That path is not a valid adb.exe. The host will open and wait for ADB in the SDK or PATH.') -ForegroundColor Yellow
+        return $null
+    }
     New-Item -ItemType Directory -Force -Path $script:DataRoot | Out-Null
     @{adbPath=[IO.Path]::GetFullPath($chosen)} | ConvertTo-Json | Set-Content -Encoding utf8 -LiteralPath $settings
     return [IO.Path]::GetFullPath($chosen)
 }
 function Prepare-Usb {
     $adb=Find-Adb
+    if (!$adb) {
+        Write-Host (Text 'ADB ainda nao esta disponivel. O painel vai abrir; instale o Platform Tools no local padrao do Android SDK ou no PATH para ativar USB.' 'ADB is not available yet. The dashboard will open; install Platform Tools in the default Android SDK location or PATH to enable USB.') -ForegroundColor Yellow
+        return
+    }
     $result=Invoke-Adb $adb @('devices','-l')
-    if ($result.Code -ne 0) { Write-Host ($result.Lines -join "`n"); Stop-Setup 'Nao foi possivel iniciar o ADB. Confira a instalacao do Android SDK.' 'ADB could not start. Check the Android SDK installation.' }
+    if ($result.Code -ne 0) {
+        Write-Host ($result.Lines -join "`n")
+        Write-Host (Text 'O ADB nao respondeu agora. O painel vai abrir e tentara preparar a conexao novamente em segundo plano.' 'ADB did not respond yet. The dashboard will open and retry the connection setup in the background.') -ForegroundColor Yellow
+        return
+    }
     $devices=@(Parse-AdbDevices $result.Lines); $ready=@($devices | Where-Object State -eq 'device')
-    if (@($devices | Where-Object State -eq 'unauthorized').Count) { Stop-Setup 'Existe um celular nao autorizado. Desbloqueie e permita a depuracao USB, ou desconecte o aparelho que nao sera usado. Depois inicie novamente.' 'A phone is unauthorized. Unlock it and allow USB debugging, or disconnect the unused phone. Then start again.' }
+    if (@($devices | Where-Object State -eq 'unauthorized').Count) {
+        Write-Host (Text 'Celular conectado, aguardando voce desbloquear e autorizar a depuracao USB. O painel vai abrir; a conexao sera preparada automaticamente quando autorizar.' 'Phone connected. Unlock it and authorize USB debugging. The dashboard will open; the connection will be prepared automatically after authorization.') -ForegroundColor Yellow
+    }
     if (!$ready.Count) {
-        Stop-Setup 'Nenhum celular autorizado. Conecte por cabo de dados, ative a depuracao USB e desbloqueie o celular. Se estiver offline, reconecte o cabo.' 'No authorized phone. Connect a data cable, enable USB debugging and unlock the phone. If offline, reconnect the cable.'
+        if (!@($devices | Where-Object State -eq 'unauthorized').Count) {
+            Write-Host (Text 'Nenhum celular autorizado ainda. O painel vai abrir e aguardara o celular por USB; conecte o cabo, ative a depuracao USB e autorize este PC.' 'No authorized phone yet. The dashboard will open and wait for a USB phone; connect the cable, enable USB debugging and authorize this PC.') -ForegroundColor Yellow
+        }
+        return
     }
     $selected=$ready[0]
     if ($ready.Count -gt 1) {
@@ -44,9 +61,29 @@ function Prepare-Usb {
         if (![int]::TryParse($choice,[ref]$number) -or $number -lt 1 -or $number -gt $ready.Count) { Stop-Setup 'Escolha invalida. Inicie novamente.' 'Invalid choice. Start again.' }
         $selected=$ready[$number-1]
     }
+    Save-SelectedUsbDevice $adb $selected.Serial
     $reverse=Invoke-Adb $adb @('-s',$selected.Serial,'reverse','tcp:47652','tcp:47652')
-    if ($reverse.Code -ne 0) { Write-Host ($reverse.Lines -join "`n"); Stop-Setup 'Nao foi possivel preparar a conexao USB. Reconecte e autorize o celular.' 'Could not prepare the USB connection. Reconnect and authorize the phone.' }
+    if ($reverse.Code -ne 0) {
+        Write-Host ($reverse.Lines -join "`n")
+        Write-Host (Text 'O encaminhamento USB nao ficou pronto. O painel vai abrir e tentara novamente em segundo plano.' 'USB forwarding is not ready. The dashboard will open and retry in the background.') -ForegroundColor Yellow
+        return
+    }
     Write-Host (Text 'USB preparado. Mantenha o app Android aberto.' 'USB is ready. Keep the Android app open.')
+}
+function Save-SelectedUsbDevice([string]$AdbPath,[string]$Serial) {
+    $dataRoot=Join-Path $env:LOCALAPPDATA 'ControllerBridge'
+    New-Item -ItemType Directory -Force -Path $dataRoot | Out-Null
+    $settingsPath=Join-Path $dataRoot 'setup.json'
+    $settings=@{}
+    if (Test-Path -LiteralPath $settingsPath) {
+        try {
+            $existing=Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
+            if ($existing.adbPath) { $settings.adbPath=[string]$existing.adbPath }
+        } catch { }
+    }
+    $settings.adbPath=[IO.Path]::GetFullPath($AdbPath)
+    $settings.deviceSerial=$Serial
+    $settings | ConvertTo-Json | Set-Content -Encoding UTF8 -LiteralPath $settingsPath
 }
 function Test-DriverReady {
     $previous=$ErrorActionPreference; $ErrorActionPreference='Continue'

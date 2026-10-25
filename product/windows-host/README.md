@@ -1,4 +1,4 @@
-# Controller Bridge — Windows 0.5.1
+# Controller Bridge — Windows 0.5.2
 
 > **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
@@ -6,15 +6,15 @@
 
 ### Start and connect
 
-1. Download `ControllerBridge-Windows-EN-v0.5.1.zip` (or the PT-BR variant) and extract the **whole ZIP**.
-2. Open **ControllerBridge.exe**. Choose **1 for USB** (or press Enter) if the phone is connected by cable; choose **2 for Wi-Fi** if both devices are on the same local network. Select the same transport in the Android app.
-3. For USB, authorize USB debugging on the unlocked phone; setup prepares ADB reverse automatically. For Wi-Fi, enter the PC IP, port **47653**, and pairing code shown in the dashboard into Android. Minimize the dashboard to keep the host running; type `stop` or `parar` in the console, or close the dashboard, to stop it.
+1. Download `ControllerBridge-Windows-EN-v0.5.2.zip` (or the PT-BR variant) and extract the **whole ZIP**.
+2. Open **ControllerBridge.exe**. Choose **1 for USB** (or press Enter), even if the phone is not connected yet; the host opens and waits. Choose **2 for Wi-Fi** if both devices are on the same local network. Select the same transport in the Android app.
+3. For USB, connect the unlocked phone and authorize USB debugging when prompted. The host prepares ADB reverse automatically, including after reconnecting the cable. For Wi-Fi, enter the PC IP, port **47653**, and pairing code shown in the dashboard into Android. Minimize the dashboard to keep the host running; type `stop` or `parar` in the console, or close the dashboard, to stop it.
 
-The Windows ZIP has one obvious launch file at its top level: **ControllerBridge.exe**. It contains the private .NET 8.0.21 runtime inside that single executable, so there are no loose .NET runtime DLLs and you do not need to install .NET. Keep the whole ZIP extracted together: the verified client library, setup scripts, driver installer and license notices remain alongside the EXE because the app needs them.
+The Windows ZIP has one obvious launch file at its top level: **ControllerBridge.exe**. It contains the private .NET 8.0.32 runtime inside that single executable, so there are no loose .NET runtime DLLs and you do not need to install .NET. Keep the whole ZIP extracted together: the verified client library, setup scripts, driver installer and license notices remain alongside the EXE because the app needs them.
 
 If the virtual controller driver is missing, setup asks whether to open the **bundled official ViGEmBus 1.22.0 installer**. It verifies the pinned SHA-256 and vendor signature first; Windows displays UAC and the installer stays visible. You approve the installation and its license in the normal installer. Cancelling stops host startup. No driver is installed silently, and this project's build/test does not run that installer.
 
-In USB mode, setup locates ADB in Android Studio/SDK, PATH or a saved location, selects an authorized phone and runs `adb -s <phone> reverse tcp:47652 tcp:47652`. An `unauthorized` phone stops setup with instructions to unlock it and approve USB debugging; restart the launcher afterward. Restart the host after reconnecting the cable so reverse is prepared again. If several phones are connected, choose the intended phone. Two gamepads connected to that phone still work as independent controllers.
+In USB mode, setup locates ADB in Android Studio/SDK, PATH or a saved location. The dashboard starts without a phone and monitors ADB; once a phone is authorized, the host prepares `adb reverse tcp:47652 tcp:47652` automatically. No restart is needed after plugging in or reconnecting the cable. If several phones are connected at startup, choose the intended phone. Two gamepads connected to that phone still work as independent controllers.
 
 **Only if ADB is missing:** setup offers to open Google's [official Platform Tools page](https://developer.android.com/tools/releases/platform-tools). Accept Google's terms, download/extract it, then select or paste the path to `adb.exe`. Android SDK files are not redistributed or downloaded silently. You normally do this once.
 
@@ -47,15 +47,15 @@ The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes
 
 ### Iniciar e conectar
 
-1. Baixe `ControllerBridge-Windows-PT-BR-v0.5.1.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
-2. Abra **ControllerBridge.exe**. Escolha **1 para USB** (ou pressione Enter) se o celular estiver conectado por cabo; escolha **2 para Wi-Fi** se os dispositivos estiverem na mesma rede local. Selecione o mesmo modo no app Android.
-3. Para USB, autorize a depuração USB no celular desbloqueado; a preparação configura o ADB reverse automaticamente. Para Wi-Fi, informe no Android o IP, a porta **47653** e o código de pareamento mostrados no painel. Minimize o painel para deixá-lo ativo; digite `stop` ou `parar` no console, ou feche o painel, para encerrar.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.5.2.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
+2. Abra **ControllerBridge.exe**. Escolha **1 para USB** (ou pressione Enter), mesmo que o celular ainda não esteja conectado; o host abre e aguarda. Escolha **2 para Wi-Fi** se os dispositivos estiverem na mesma rede local. Selecione o mesmo modo no app Android.
+3. Para USB, conecte o celular desbloqueado e autorize a depuração USB quando solicitado. O host prepara o ADB reverse automaticamente, inclusive após reconectar o cabo. Para Wi-Fi, informe no Android o IP, a porta **47653** e o código de pareamento mostrados no painel. Minimize o painel para deixá-lo ativo; digite `stop` ou `parar` no console, ou feche o painel, para encerrar.
 
-O ZIP Windows tem um único arquivo óbvio para iniciar na raiz: **ControllerBridge.exe**. O runtime privado do .NET 8.0.21 está dentro desse executável, sem DLLs soltas do runtime, e você não precisa instalar .NET. Extraia tudo junto: a biblioteca cliente verificada, os scripts de preparação, o instalador do driver e os avisos de licença ficam ao lado do EXE porque o app precisa deles.
+O ZIP Windows tem um único arquivo óbvio para iniciar na raiz: **ControllerBridge.exe**. O runtime privado do .NET 8.0.32 está dentro desse executável, sem DLLs soltas do runtime, e você não precisa instalar .NET. Extraia tudo junto: a biblioteca cliente verificada, os scripts de preparação, o instalador do driver e os avisos de licença ficam ao lado do EXE porque o app precisa deles.
 
 Se faltar o driver de controle virtual, a preparação pergunta se você deseja abrir o **instalador oficial ViGEmBus 1.22.0 incluído**. Antes, ela verifica o SHA-256 fixado e a assinatura do fornecedor; o Windows mostra o UAC e o instalador fica visível. Você autoriza a instalação e a licença no instalador normal. Cancelar interrompe a abertura do host. Nenhum driver é instalado silenciosamente, e o processo de compilação/teste deste projeto não executa esse instalador.
 
-No modo USB, a preparação localiza ADB no Android Studio/SDK, no PATH ou no local salvo, seleciona um celular autorizado e executa `adb -s <celular> reverse tcp:47652 tcp:47652`. Um celular `unauthorized` interrompe a preparação e mostra como desbloquear e autorizar a depuração USB; depois, inicie novamente. Reinicie o host depois de reconectar o cabo para refazer o encaminhamento. Se houver vários celulares, escolha o desejado. Dois controles conectados ao mesmo celular continuam independentes.
+No modo USB, a preparação localiza ADB no Android Studio/SDK, no PATH ou no local salvo. O painel abre sem celular e monitora o ADB; quando um aparelho for autorizado, o host prepara `adb reverse tcp:47652 tcp:47652` automaticamente. Não é preciso reiniciar depois de conectar ou reconectar o cabo. Se houver vários celulares na inicialização, escolha o desejado. Dois controles conectados ao mesmo celular continuam independentes.
 
 **Somente se faltar ADB:** a preparação oferece abrir a [página oficial do Platform Tools da Google](https://developer.android.com/tools/releases/platform-tools). Aceite os termos da Google, baixe/extraia e selecione ou cole o caminho de `adb.exe`. Os arquivos do Android SDK não são redistribuídos nem baixados silenciosamente. Normalmente isso só precisa ser feito uma vez.
 

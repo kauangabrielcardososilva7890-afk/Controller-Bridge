@@ -20,6 +20,7 @@ public static class SelfTests
             TestStateAndProjection();
             TestLanguageSelection();
             TestStartupMode();
+            TestUsbReverseDeviceParsing();
             TestMotionParsingAndReport();
             TestMotionProfilesAndSwitchRollback(Path.Combine(temporary, "motion-profiles"));
             TestSessionLifecycle(Path.Combine(temporary, "profiles"));
@@ -99,6 +100,18 @@ public static class SelfTests
         }
         finally { Console.SetIn(originalInput); }
         Expect<ArgumentException>(() => StartupMode.UseWifi(["--usb", "--wifi"], false, true), "Conflicting USB and Wi-Fi modes must be rejected.");
+    }
+
+    private static void TestUsbReverseDeviceParsing()
+    {
+        var devices = UsbReverseMonitor.ParseAuthorizedDevices(["List of devices attached", "phone1 unauthorized usb:1-1", "phone2 device product:x model:POCO", "emulator-5554 offline", "* daemon started successfully"]);
+        Check(devices.Count == 1 && devices[0] == "phone2", "USB monitor must reverse only authorized ADB devices.");
+        Check(UsbReverseMonitor.ParseAuthorizedDevices(["List of devices attached", ""]).Count == 0, "USB monitor must wait cleanly when no phone is connected.");
+        var multiple = new[] { "phone1", "phone2" };
+        Check(UsbReverseMonitor.SelectSessionDevice(multiple, "phone2") == "phone2", "USB monitor must honor the phone selected during setup.");
+        Check(UsbReverseMonitor.RefreshSessionDevice("phone2", multiple, "phone2") == "phone2", "USB monitor must retain the current authorized phone.");
+        Check(UsbReverseMonitor.RefreshSessionDevice("phone2", ["phone1"], "phone2") == "phone1", "USB monitor must switch to an available phone after the current phone disconnects.");
+        Check(UsbReverseMonitor.RefreshSessionDevice("phone2", [], "phone2") == null, "USB monitor must wait when no authorized phone is available.");
     }
 
     private static void TestMotionParsingAndReport()

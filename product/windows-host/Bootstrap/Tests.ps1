@@ -12,6 +12,35 @@ $manifest=Get-Content -Raw (Join-Path $PSScriptRoot 'Dependencies.json') | Conve
 Check ($manifest.driver.url.StartsWith('https://github.com/nefarius/ViGEmBus/releases/download/')) 'Driver must use the official vendor release.'
 Check ($manifest.driver.sha256 -match '^[0-9a-f]{64}$' -and $manifest.client.dllSha256 -match '^[0-9a-f]{64}$') 'Pinned SHA256 hashes required.'
 Check ($manifest.driver.publisher -eq 'Nefarius Software Solutions e.U.') 'Publisher validation required.'
+$script:reverseCalled=$false
+$script:reverseArgs=@()
+$script:adbLines=@('phone1 unauthorized')
+$script:adbAvailable=$false
+$script:adbDeviceExitCode=0
+$script:adbReverseExitCode=0
+function Find-Adb { if($script:adbAvailable){return 'C:\test\adb.exe'}; return $null }
+function Invoke-Adb { param($AdbPath,$AdbArguments) if ($AdbArguments[0] -eq 'devices') { return [pscustomobject]@{Code=$script:adbDeviceExitCode;Lines=$script:adbLines} }; $script:reverseCalled=$true; $script:reverseArgs=$AdbArguments; return [pscustomobject]@{Code=$script:adbReverseExitCode;Lines=@('simulated reverse result')} }
+function Save-SelectedUsbDevice { param($AdbPath,$Serial) $script:savedSerial=$Serial }
+function Read-Host { param($Prompt) return '' }
+Prepare-Usb
+Check (!$script:reverseCalled) 'USB setup must allow the host to start when ADB is not installed yet.'
+$script:adbAvailable=$true
+Prepare-Usb
+Check (!$script:reverseCalled) 'USB setup must let the host start while waiting for the user to authorize a phone.'
+$script:adbLines=@('List of devices attached','emulator-5554 offline')
+Prepare-Usb
+Check (!$script:reverseCalled) 'USB setup must let the host start while no phone is connected.'
+$script:adbLines=@('phone2 device product:x model:POCO')
+Prepare-Usb
+Check ($script:reverseCalled -and $script:reverseArgs[1] -eq 'phone2' -and $script:savedSerial -eq 'phone2') 'An authorized USB phone must still receive adb reverse and its selection must be remembered.'
+$script:reverseCalled=$false
+$script:adbDeviceExitCode=1
+Prepare-Usb
+Check (!$script:reverseCalled) 'A transient ADB failure must not prevent the host from opening.'
+$script:adbDeviceExitCode=0
+$script:adbReverseExitCode=1
+Prepare-Usb
+Check ($script:reverseCalled) 'A transient reverse failure must not prevent the host from opening.'
 $script:installerStarted=$false
 function Test-DriverReady { return $false }
 function Read-Host { param($Prompt) return 'n' }
@@ -19,9 +48,4 @@ function Stop-Setup { param($pt,$en) throw [OperationCanceledException]::new('Ex
 function Start-Process { $script:installerStarted=$true; throw 'Installer must not run in a test.' }
 try { Ensure-Driver $manifest.driver; throw 'Cancellation did not stop setup.' } catch [OperationCanceledException] { }
 Check (!$script:installerStarted) 'Declining driver installation must not start any installer.'
-$script:reverseCalled=$false
-function Find-Adb { return 'C:\test\adb.exe' }
-function Invoke-Adb { param($AdbPath,$AdbArguments) if ($AdbArguments[0] -eq 'devices') { return [pscustomobject]@{Code=0;Lines=@('phone1 unauthorized','emulator-5554 device')} }; $script:reverseCalled=$true; return [pscustomobject]@{Code=0;Lines=@()} }
-try { Prepare-Usb; throw 'Unauthorized phone did not stop USB setup.' } catch [OperationCanceledException] { }
-Check (!$script:reverseCalled) 'Unauthorized phone must stop before reverse, even with another authorized device.'
 Write-Host "PASS: $checks bootstrap checks (no downloads or installations)."

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/release-v050.yml"
+      - "product/windows-host/**"
+      - "README.md"
   workflow_dispatch:
 
 permissions:
@@ -25,99 +27,33 @@ jobs:
         with:
           name: windows-packages
           path: |
-            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.1.zip
-            artifacts/windows/ControllerBridge-Windows-EN-v0.5.1.zip
-          if-no-files-found: error
-          retention-days: 2
-
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: "platform-tools platforms;android-34 build-tools;34.0.0"
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "8.2.1"
-      - name: Create Android debug signing key
-        shell: bash
-        run: |
-          mkdir -p product/android-app/.android-user
-          keytool -genkeypair -noprompt -storetype PKCS12 \
-            -keystore product/android-app/.android-user/controller-bridge-debug.keystore \
-            -storepass android -alias androiddebugkey -keypass android \
-            -dname "CN=Controller Bridge Debug,O=Controller Bridge,C=BR" \
-            -keyalg RSA -keysize 2048 -validity 10000
-      - name: Build both Android packages
-        working-directory: product/android-app
-        run: gradle --no-daemon :app:assemblePtBrDebug :app:assembleEnDebug
-      - name: Verify mapping and Wi-Fi checks
-        working-directory: product/android-app
-        shell: bash
-        run: |
-          mkdir -p build/mapping-checks
-          javac -encoding UTF-8 -d build/mapping-checks \
-            app/src/main/java/com/controllerbridge/app/MappingModel.java \
-            app/src/main/java/com/controllerbridge/app/ProfileIdAllocator.java \
-            app/src/main/java/com/controllerbridge/app/BridgeLifecycle.java \
-            app/src/main/java/com/controllerbridge/app/ControllerInputFilter.java \
-            app/src/main/java/com/controllerbridge/app/MotionDeviceMatcher.java \
-            app/src/main/java/com/controllerbridge/app/WifiSecureChannel.java \
-            app/src/test/java/com/controllerbridge/app/MappingModelSelfTest.java \
-            app/src/test/java/com/controllerbridge/app/WifiSecureChannelSelfTest.java
-          java -cp build/mapping-checks com.controllerbridge.app.MappingModelSelfTest
-          java -cp build/mapping-checks com.controllerbridge.app.WifiSecureChannelSelfTest
-      - name: Collect APKs
-        working-directory: product/android-app
-        shell: bash
-        run: |
-          mkdir -p dist
-          pt_apk="$(find app/build/outputs/apk/ptBr/debug -maxdepth 1 -name '*.apk' -print -quit)"
-          en_apk="$(find app/build/outputs/apk/en/debug -maxdepth 1 -name '*.apk' -print -quit)"
-          test -n "$pt_apk"
-          test -n "$en_apk"
-          cp "$pt_apk" dist/ControllerBridge-Android-PT-BR-v0.5.1.apk
-          cp "$en_apk" dist/ControllerBridge-Android-EN-v0.5.1.apk
-      - uses: actions/upload-artifact@v7
-        with:
-          name: android-packages
-          path: |
-            product/android-app/dist/ControllerBridge-Android-PT-BR-v0.5.1.apk
-            product/android-app/dist/ControllerBridge-Android-EN-v0.5.1.apk
+            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.2.zip
+            artifacts/windows/ControllerBridge-Windows-EN-v0.5.2.zip
           if-no-files-found: error
           retention-days: 2
 
   release:
-    needs: [windows, android]
+    needs: [windows]
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-      github.event.head_commit.message == 'Build and publish v0.5.1 packages')
+      github.event.head_commit.message == 'Fix USB startup waiting and publish v0.5.2')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
         with:
           name: windows-packages
           path: release-assets
-      - uses: actions/download-artifact@v7
-        with:
-          name: android-packages
-          path: release-assets
       - name: Generate checksums
         shell: bash
         run: |
           cd release-assets
-          sha256sum *.apk *.zip > SHA256SUMS.txt
-          test "$(find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.zip' \) | wc -l)" -eq 4
+          sha256sum *.zip > SHA256SUMS.txt
+          test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 2
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v0.5.1
-          name: Controller Bridge v0.5.1
+          tag_name: v0.5.2
+          name: Controller Bridge v0.5.2
           target_commitish: main
           draft: false
           prerelease: false
@@ -126,9 +62,9 @@ jobs:
           files: release-assets/*
           body: |
             ## English
-            Installable Android and Windows packages in PT-BR and English. The Windows host restores the startup choice between USB (default) and Wi-Fi, improves the live controller dashboard and bundles its .NET runtime into one top-level ControllerBridge.exe. Keep the included setup files, verified driver installer, client library, and license notices beside the EXE after extraction. See the README for installation and connection instructions. SHA256SUMS.txt contains checksums for all four packages.
+            Windows 0.5.2 keeps the host running while USB waits for an authorized Android phone and prepares ADB reverse automatically when the phone becomes available. Windows packages are available in PT-BR and English. Android packages are unchanged; see v0.5.1 for the APKs. SHA256SUMS.txt contains checksums for both Windows packages.
 
             ## Português
-            Pacotes instaláveis para Android e Windows em PT-BR e inglês. O host Windows restaura a escolha inicial entre USB (padrão) e Wi-Fi, melhora o painel de controles ao vivo e inclui o runtime .NET dentro de um único ControllerBridge.exe na raiz. Mantenha ao lado do EXE os arquivos de preparação, o instalador verificado do driver, a biblioteca cliente e os avisos de licença incluídos. Consulte o README para instruções de instalação e conexão. SHA256SUMS.txt contém os hashes dos quatro pacotes.
+            O Windows 0.5.2 mantém o host aberto enquanto o USB aguarda um celular Android autorizado e prepara o ADB reverse automaticamente quando o celular fica disponível. Os pacotes Windows estão em PT-BR e inglês. Os APKs Android não mudaram; consulte a v0.5.1. SHA256SUMS.txt contém os hashes dos dois pacotes Windows.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -87,6 +87,7 @@ public static class Program
             Console.Write("> ");
             using var host = new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english)));
             var serverTask = host.RunAsync(port, cancellation.Token, wifi);
+            var usbMonitorTask = wifiMode ? null : new UsbReverseMonitor(port, english, Console.WriteLine).RunAsync(cancellation.Token);
             ApplicationConfiguration.Initialize();
             using var dashboard = new DashboardForm(english, host, localIps, wifiMode, wifi?.Port ?? 47653,
                 wifi == null ? "—" : Convert.ToHexString(wifi.PairingKey).ToLowerInvariant(), cancellation.Cancel);
@@ -114,9 +115,13 @@ public static class Program
                     if (dashboard.IsHandleCreated && !dashboard.IsDisposed) dashboard.BeginInvoke(new Action(dashboard.Close));
                 }
             }, TaskScheduler.Default);
-            Application.Run(dashboard);
-            cancellation.Cancel();
-            try { serverTask.GetAwaiter().GetResult(); }
+            try { Application.Run(dashboard); }
+            finally { cancellation.Cancel(); }
+            try
+            {
+                serverTask.GetAwaiter().GetResult();
+                usbMonitorTask?.GetAwaiter().GetResult();
+            }
             finally { _ = commandReader; }
             return 0;
         }
