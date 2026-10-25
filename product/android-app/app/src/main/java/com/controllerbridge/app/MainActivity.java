@@ -188,7 +188,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         wifiPairings = new WifiPairingStore(this);
         String savedLanguage=getSharedPreferences("controller-bridge",MODE_PRIVATE).getString("language",null);
         if(savedLanguage==null) {
-            english=!"pt".equals(Locale.getDefault().getLanguage());
+            english=!"pt".equals(BuildConfig.DEFAULT_LANGUAGE);
             getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString("language",english?"en":"pt").apply();
         } else english=!"pt".equals(savedLanguage);
         wifiMode=getSharedPreferences("controller-bridge",MODE_PRIVATE).getBoolean("wifi_mode",false);
