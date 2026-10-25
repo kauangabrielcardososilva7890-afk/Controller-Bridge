@@ -17,7 +17,8 @@ public static class Program
             if (args.Contains("--help")) { PrintHelp(english); return 0; }
             string Tr(string pt, string en) => english ? en : pt;
             var diagnostic = args.Contains("--diagnostic");
-            var wifiMode = StartupMode.UseWifi(args);
+            var packaged = File.Exists(Path.Combine(AppContext.BaseDirectory, "Bootstrap", "Prepare.ps1"));
+            var wifiMode = StartupMode.UseWifi(args, english, packaged);
             if (!args.Contains("--probe") && !args.Contains("--prepared") && !await Bootstrapper.PrepareAsync(wifiMode, diagnostic, english)) return 1;
             var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(AppContext.BaseDirectory, "Nefarius.ViGEm.Client.dll");
             var profileDirectory = Argument(args, "--profiles") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "profiles");

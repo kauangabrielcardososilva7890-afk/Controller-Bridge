@@ -82,11 +82,11 @@ public static class SelfTests
 
     private static void TestStartupMode()
     {
-        Check(StartupMode.UseWifi([]), "Double-click startup must default to Wi-Fi and show a connectable PC address.");
-        Check(StartupMode.UseWifi(["--wifi", "--lang", "pt"]), "Explicit Wi-Fi mode must stay enabled.");
-        Check(!StartupMode.UseWifi(["--usb", "--lang", "pt"]), "USB launcher must select USB explicitly.");
-        Check(!StartupMode.UseWifi(["--diagnostic"]), "Diagnostics without a transport must keep USB loopback mode.");
-        Expect<ArgumentException>(() => StartupMode.UseWifi(["--usb", "--wifi"]), "Conflicting USB and Wi-Fi modes must be rejected.");
+        Check(StartupMode.UseWifi([], false, false), "Source startup must default to Wi-Fi without prompting.");
+        Check(StartupMode.UseWifi(["--wifi", "--lang", "pt"], false, true), "Explicit Wi-Fi mode must stay enabled.");
+        Check(!StartupMode.UseWifi(["--usb", "--lang", "pt"], false, true), "USB option must select USB explicitly.");
+        Check(!StartupMode.UseWifi(["--diagnostic"], false, true), "Diagnostics must not prompt for a transport.");
+        Expect<ArgumentException>(() => StartupMode.UseWifi(["--usb", "--wifi"], false, true), "Conflicting USB and Wi-Fi modes must be rejected.");
     }
 
     private static void TestMotionParsingAndReport()

@@ -1,4 +1,4 @@
-# Controller Bridge — Windows 0.3.2
+# Controller Bridge — Windows 0.3.3
 
 > **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
@@ -6,9 +6,9 @@
 
 ### Start in two main steps
 
-1. Download `ControllerBridge-Windows-EN-v0.3.2.zip` (or the PT-BR variant) and extract the **whole ZIP**.
-2. For Wi-Fi, open **ControllerBridge.exe** or **Start-WiFi.cmd**. The visible host window stays open and shows `STATUS: ACTIVE`, the PC IP address, port, and pairing code to enter in the Android app.
-3. For USB, connect the phone by a data USB cable, enable USB debugging, approve this PC on the phone, and open **Start-USB.cmd**. USB mode does not use an IP address.
+1. Download `ControllerBridge-Windows-EN-v0.3.3.zip` (or the PT-BR variant) and extract the **whole ZIP**.
+2. Open the single launcher, **ControllerBridge.exe**, and choose Wi-Fi (recommended) or USB cable from its menu. For USB, connect the phone with a data cable, enable USB debugging, and approve this PC on the phone. For Wi-Fi, connect the PC and phone to the same local network.
+3. Keep the host window open. It shows `STATUS: ACTIVE`; Wi-Fi also displays the PC IP address, port, and pairing code for the Android app.
 
 The ZIP already includes a private .NET 8.0.32 runtime and the official client library. You do not need to install .NET or copy DLLs. Keep all extracted files and folders together.
 
@@ -20,7 +20,7 @@ Setup locates ADB in Android Studio/SDK, PATH or a saved location, selects an au
 
 ### Optional Wi-Fi
 
-Open **Start-WiFi.cmd**, connect PC and phone to the same LAN, then choose Wi-Fi in Android and enter the displayed PC IPv4, port **47653** and pairing code. You can also find IPv4 with `ipconfig`. If Windows Firewall asks, allow Controller Bridge **only on your private network**. No firewall rule is created automatically.
+Open **ControllerBridge.exe** and choose Wi-Fi, connect PC and phone to the same LAN, then choose Wi-Fi in Android and enter the displayed PC IPv4, port **47653** and pairing code. You can also find IPv4 with `ipconfig`. If Windows Firewall asks, allow Controller Bridge **only on your private network**. No firewall rule is created automatically.
 
 Pairing uses mutual authentication and authenticated encryption. The host remembers its key in `%LOCALAPPDATA%\ControllerBridge\pairing.key`. To reset all pairings, stop the host and delete that key file, then restart Wi-Fi and pair again. Advanced options: `--wifi`, `--wifi-port N`, `--wifi-bind IP`, `--pairing-file path`. USB uses loopback port47652 and stays available with Wi-Fi enabled.
 
@@ -46,9 +46,9 @@ The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes
 
 ### Iniciar em duas etapas principais
 
-1. Baixe `ControllerBridge-Windows-PT-BR-v0.3.2.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
-2. Para Wi-Fi, abra **ControllerBridge.exe** ou **Iniciar-WiFi.cmd**. A janela visível do host fica aberta e mostra `STATUS: ATIVO`, o IP do PC, a porta e o código para informar no app Android.
-3. Para USB, conecte o celular por cabo USB de dados, ative a depuração USB, autorize este PC na tela do celular e abra **Iniciar-USB.cmd**. O modo USB não usa endereço IP.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.3.3.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
+2. Abra o único iniciador, **ControllerBridge.exe**, e escolha Wi-Fi (recomendado) ou cabo USB no menu. Para USB, conecte o celular com um cabo de dados, ative a depuração USB e autorize este PC no celular. Para Wi-Fi, conecte PC e celular à mesma rede local.
+3. Mantenha a janela do host aberta. Ela mostra `STATUS: ATIVO`; no Wi-Fi, também exibe o IP do PC, a porta e o código para informar no app Android.
 
 O ZIP já contém um runtime privado do .NET 8.0.32 e a biblioteca cliente oficial. Você não precisa instalar .NET nem copiar DLLs. Mantenha todos os arquivos e pastas extraídos juntos.
 
@@ -60,7 +60,7 @@ A preparação localiza ADB no Android Studio/SDK, no PATH ou no local salvo, se
 
 ### Wi-Fi opcional
 
-Abra **Iniciar-WiFi.cmd**, conecte PC e celular à mesma rede e escolha Wi-Fi no Android. Informe o IPv4 do PC exibido, a porta **47653** e o código de pareamento. Também é possível localizar o IPv4 com `ipconfig`. Se o Firewall do Windows perguntar, permita o Controller Bridge **somente na rede privada**. Nenhuma regra de firewall é criada automaticamente.
+Abra **ControllerBridge.exe** e escolha Wi-Fi, conecte PC e celular à mesma rede e escolha Wi-Fi no Android. Informe o IPv4 do PC exibido, a porta **47653** e o código de pareamento. Também é possível localizar o IPv4 com `ipconfig`. Se o Firewall do Windows perguntar, permita o Controller Bridge **somente na rede privada**. Nenhuma regra de firewall é criada automaticamente.
 
 O pareamento usa autenticação mútua e criptografia autenticada. O host guarda a chave em `%LOCALAPPDATA%\ControllerBridge\pairing.key`. Para refazer todos os pareamentos, feche o host, apague esse arquivo, reinicie Wi-Fi e pareie novamente. Opções avançadas: `--wifi`, `--wifi-port N`, `--wifi-bind IP`, `--pairing-file caminho`. USB usa a porta local47652 e continua disponível com Wi-Fi ativado.
 
