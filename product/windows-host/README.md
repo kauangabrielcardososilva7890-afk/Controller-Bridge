@@ -8,7 +8,7 @@
 
 - Download the latest `ControllerBridge-android.apk` for Android and `ControllerBridge.exe` for Windows from the GitHub Releases page.
 - Windows 11 x64 and the .NET 8 Desktop Runtime are required.
-- Install the ViGEmBus virtual gamepad driver and place its client library `Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. Use `--lang en` or `--lang pt` to choose the terminal language; otherwise it follows Windows language.
+- Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. Use `--lang en` or `--lang pt` to choose the terminal language; otherwise it follows Windows language.
 - On Android, pair the PS4, Xbox, or other supported Bluetooth gamepad in system Bluetooth settings.
 
 ### Connect over USB
@@ -29,6 +29,7 @@ Use **Diagnostic mode** (`ControllerBridge.exe --diagnostic`) to view incoming i
 - The Windows host currently runs in a terminal. It listens only on the local PC connection and does not hide or modify controllers plugged directly into Windows. Physical controller lightbar color is not available in this release.
 - Xbox virtual outputs share Windows' four XInput slots with native controllers.
 - This project does not redistribute the virtual bus driver or its client library; install them separately.
+- ViGEmBus is an external dependency whose upstream repository is archived; check its official release page before installing.
 
 ### Build from source
 
@@ -44,7 +45,7 @@ Install the .NET 8 SDK and run `product/windows-host/Build.ps1`. The output is `
 
 - Baixe o `ControllerBridge-android.apk` para Android e o `ControllerBridge.exe` para Windows mais recentes na página Releases do GitHub.
 - É necessário Windows 11 x64 e .NET 8 Desktop Runtime.
-- Instale o driver de controle virtual ViGEmBus e coloque a biblioteca cliente `Nefarius.ViGEm.Client.dll` ao lado de `ControllerBridge.exe`. Use `--lang pt` ou `--lang en` para escolher o idioma do terminal; sem essa opção, ele acompanha o idioma do Windows.
+- Instale o [driver oficial ViGEmBus](https://github.com/nefarius/ViGEmBus/releases). Baixe o [pacote NuGet Nefarius.ViGEm.Client](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), abra o `.nupkg` como ZIP e copie `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` para junto de `ControllerBridge.exe`. Use `--lang pt` ou `--lang en` para escolher o idioma do terminal; sem essa opção, ele acompanha o idioma do Windows.
 - No Android, pareie o controle de PS4, Xbox ou outro controle Bluetooth compatível nas configurações do sistema.
 
 ### Conectar por USB
@@ -65,7 +66,9 @@ Use o **Modo de diagnóstico** (`ControllerBridge.exe --diagnostic`) para visual
 - O host Windows funciona pelo terminal. Ele escuta apenas a conexão local do PC e não oculta nem altera controles conectados diretamente ao Windows.
 - Saídas virtuais Xbox compartilham as quatro posições XInput do Windows com controles nativos.
 - Este projeto não redistribui o driver de barramento virtual nem sua biblioteca cliente; instale-os separadamente.
+- ViGEmBus é uma dependência externa e o repositório original está arquivado; confira a página oficial de versões antes de instalar.
 
 ### Compilar do código-fonte
 
 Instale o .NET 8 SDK e execute `product/windows-host/Build.ps1`. O resultado é `ControllerBridge.exe`.
+
