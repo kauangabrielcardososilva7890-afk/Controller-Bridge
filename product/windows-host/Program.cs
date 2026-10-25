@@ -8,9 +8,12 @@ public static class Program
         {
             if (args.Contains("--self-test")) return await SelfTests.RunAsync();
             var languageArg = Argument(args, "--lang");
-            if (languageArg is not null && languageArg is not ("en" or "pt"))
-                throw new ArgumentException("--lang accepts only en or pt.");
-            var english = languageArg is "en" || (languageArg is null && !System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("pt", StringComparison.OrdinalIgnoreCase));
+            var english = HostLanguage.Resolve(languageArg) == "en";
+            if (args.Contains("--version"))
+            {
+                Console.WriteLine("Controller Bridge " + typeof(Program).Assembly.GetName().Version!.ToString(3));
+                return 0;
+            }
             if (args.Contains("--help")) { PrintHelp(english); return 0; }
             string Tr(string pt, string en) => english ? en : pt;
             var diagnostic = args.Contains("--diagnostic");
@@ -97,8 +100,8 @@ public static class Program
     private static void PrintHelp(bool english)
     {
         Console.WriteLine(english
-            ? "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  --wifi       Also enable authenticated, encrypted Wi-Fi on port 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\nUSB/ADB stays on loopback. Wi-Fi is off unless --wifi is supplied."
-            : "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  --wifi       Ativa também Wi-Fi autenticado e criptografado na porta 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\nUSB/ADB continua local. Wi-Fi fica desligado sem a opção --wifi.");
+            ? "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  --wifi       Also enable authenticated, encrypted Wi-Fi on port 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version.\nUSB/ADB stays on loopback. Wi-Fi is off unless --wifi is supplied."
+            : "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  --wifi       Ativa também Wi-Fi autenticado e criptografado na porta 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.\nUSB/ADB continua local. Wi-Fi fica desligado sem a opção --wifi.");
     }
 }
 
