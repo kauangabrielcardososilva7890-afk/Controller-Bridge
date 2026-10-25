@@ -31,7 +31,7 @@ if (-not (Test-Path -LiteralPath $debugKeystore)) {
 }
 Push-Location $projectRoot
 try {
-    & $gradleBat --offline --no-daemon "-Pandroid.aapt2FromMavenOverride=$aapt2" :app:assembleDebug
+    & $gradleBat --offline --no-daemon "-Pandroid.aapt2FromMavenOverride=$aapt2" :app:assemblePtBrDebug :app:assembleEnDebug
     if ($LASTEXITCODE -ne 0) { throw "Gradle terminou com código $LASTEXITCODE" }
 
     $testOutput = Join-Path $projectRoot 'build\mapping-checks'
@@ -51,13 +51,22 @@ try {
     & $javaExe -cp $testOutput com.controllerbridge.app.WifiSecureChannelSelfTest
     if ($LASTEXITCODE -ne 0) { throw 'As verificações do canal Wi-Fi falharam.' }
 
-    $apk = Join-Path $projectRoot 'app\build\outputs\apk\debug\app-debug.apk'
-    if (-not (Test-Path -LiteralPath $apk)) { throw 'O APK não foi gerado.' }
+    $apkRoot = Join-Path $projectRoot 'app\build\outputs\apk'
+    $builtApks = @(Get-ChildItem -LiteralPath $apkRoot -Recurse -Filter '*.apk' -ErrorAction Stop)
+    $ptApk = @($builtApks | Where-Object { $_.FullName -match '(?i)[\\/]ptbr[\\/]debug[\\/]' -or $_.Name -match '(?i)pt.?br' })
+    $enApk = @($builtApks | Where-Object { $_.FullName -match '(?i)[\\/]en[\\/]debug[\\/]' -or $_.Name -match '(?i)(^|[-_])en([-_]|$)' })
+    if ($ptApk.Count -ne 1) { throw "Esperado exatamente um APK PT-BR; encontrados $($ptApk.Count)." }
+    if ($enApk.Count -ne 1) { throw "Esperado exatamente um APK EN; encontrados $($enApk.Count)." }
     $dist = Join-Path $projectRoot 'dist'
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $deliverable = Join-Path $dist 'ControllerBridge-android.apk'
-    Copy-Item -LiteralPath $apk -Destination $deliverable -Force
-    Write-Output "APK gerado: $deliverable"
+    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.3.0.apk'
+    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.3.0.apk'
+    Copy-Item -LiteralPath $ptApk[0].FullName -Destination $ptDeliverable -Force
+    Copy-Item -LiteralPath $enApk[0].FullName -Destination $enDeliverable -Force
+    $oldGeneric = Join-Path $dist 'ControllerBridge-android.apk'
+    if (Test-Path -LiteralPath $oldGeneric) { Remove-Item -LiteralPath $oldGeneric -Force }
+    Write-Output "APK PT-BR gerado: $ptDeliverable"
+    Write-Output "APK EN gerado: $enDeliverable"
 } finally {
     Pop-Location
 }
