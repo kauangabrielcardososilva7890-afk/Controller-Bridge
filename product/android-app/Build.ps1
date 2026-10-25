@@ -59,8 +59,8 @@ try {
     if ($enApk.Count -ne 1) { throw "Esperado exatamente um APK EN; encontrados $($enApk.Count)." }
     $dist = Join-Path $projectRoot 'dist'
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.5.0.apk'
-    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.5.0.apk'
+    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.5.1.apk'
+    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.5.1.apk'
     Copy-Item -LiteralPath $ptApk[0].FullName -Destination $ptDeliverable -Force
     Copy-Item -LiteralPath $enApk[0].FullName -Destination $enDeliverable -Force
     $oldGeneric = Join-Path $dist 'ControllerBridge-android.apk'

@@ -2,14 +2,20 @@ using System.Drawing.Drawing2D;
 namespace ControllerBridge.Host;
 internal sealed class ControllerDiagram : Control
 {
+    private const float ViewWidth = 500;
+    private const float ViewHeight = 270;
+    private const float ViewTop = 70;
     private ControllerSnapshot? _snapshot;
+    private string? _hovered;
+    public string? CaptureButton { get; set; }
     public event Action<string>? LogicalButtonClicked;
     private readonly Dictionary<string, RectangleF> _targets = new(StringComparer.Ordinal);
 
     public ControllerDiagram()
     {
-        DoubleBuffered = true; BackColor = Color.FromArgb(23, 30, 40); Cursor = Cursors.Hand;
+        DoubleBuffered = true; BackColor = Color.FromArgb(23, 30, 40); Cursor = Cursors.Default;
         ResizeRedraw = true;
+        TabStop = false; // Every mapping is also a keyboard-accessible button beside the diagram.
     }
 
     public void SetController(ControllerSnapshot? snapshot) { _snapshot = snapshot; Invalidate(); }
@@ -18,13 +24,13 @@ internal sealed class ControllerDiagram : Control
     {
         base.OnPaint(e);
         var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias; _targets.Clear();
-        var scale = Math.Min(ClientSize.Width / 500f, ClientSize.Height / 340f);
+        var scale = Math.Min(ClientSize.Width / ViewWidth, ClientSize.Height / ViewHeight);
         if (scale <= 0) return;
-        var ox = (ClientSize.Width - 500 * scale) / 2f; var oy = (ClientSize.Height - 340 * scale) / 2f;
-        g.TranslateTransform(ox, oy); g.ScaleTransform(scale, scale);
+        var ox = (ClientSize.Width - ViewWidth * scale) / 2f; var oy = (ClientSize.Height - ViewHeight * scale) / 2f;
+        g.TranslateTransform(ox, oy - ViewTop * scale); g.ScaleTransform(scale, scale);
         var ds4 = _snapshot?.Output == "ds4";
-        using var body = new SolidBrush(ds4 ? Color.FromArgb(42, 51, 64) : Color.FromArgb(57, 62, 68));
-        using var edge = new Pen(Color.FromArgb(100, 116, 134), 2.5f);
+        using var body = new LinearGradientBrush(new RectangleF(20, 100, 460, 220), Color.FromArgb(36, 50, 65), Color.FromArgb(23, 30, 40), LinearGradientMode.Vertical);
+        using var edge = new Pen(Color.FromArgb(100, 140, 170), 1.5f);
         using var path = new GraphicsPath();
         if (ds4)
         {
@@ -42,6 +48,12 @@ internal sealed class ControllerDiagram : Control
             path.AddBezier(472, 280, 468, 197, 446, 111, 395, 109); path.AddBezier(395, 109, 340, 120, 160, 120, 105, 109);
         }
         path.CloseFigure(); g.FillPath(body, path); g.DrawPath(edge, path);
+        // A subtle inner seam gives the shell depth without obscuring live inputs.
+        using (var seam = new Pen(Color.FromArgb(44, 65, 83), 1))
+        {
+            g.DrawBezier(seam, 55, 277, 80, 239, 102, 252, 131, 246);
+            g.DrawBezier(seam, 445, 277, 420, 239, 398, 252, 369, 246);
+        }
         var dpad = ds4 ? new PointF(115, 210) : new PointF(181, 239);
         DrawButton(g, "dpad_up", "▲", new RectangleF(dpad.X - 16, dpad.Y - 43, 32, 30));
         DrawButton(g, "dpad_down", "▼", new RectangleF(dpad.X - 16, dpad.Y + 13, 32, 30));
@@ -59,7 +71,7 @@ internal sealed class ControllerDiagram : Control
             using var touchEdge = new Pen(Color.FromArgb(82, 96, 114));
             g.FillRoundedRectangle(touch, new RectangleF(193, 143, 114, 55), 8);
             g.DrawRoundedRectangle(touchEdge, new RectangleF(193, 143, 114, 55), 8);
-            DrawButton(g, "share", "SHARE", new RectangleF(158, 151, 32, 23)); DrawButton(g, "options", "OPTIONS", new RectangleF(310, 151, 36, 23));
+            DrawButton(g, "share", "SH", new RectangleF(158, 151, 32, 23)); DrawButton(g, "options", "OPT", new RectangleF(310, 151, 36, 23));
             DrawStick(g, "l3", new PointF(197, 241), "L3"); DrawStick(g, "r3", new PointF(295, 241), "R3");
             DrawButton(g, "ps", "PS", new RectangleF(232, 208, 32, 27));
         }
@@ -69,18 +81,15 @@ internal sealed class ControllerDiagram : Control
             DrawStick(g, "l3", new PointF(114, 178), "LS"); DrawStick(g, "r3", new PointF(291, 239), "RS");
             DrawButton(g, "ps", "X", new RectangleF(232, 147, 36, 36));
         }
-        using var captionBrush = new SolidBrush(Color.FromArgb(193, 208, 225));
-        using var font = new Font("Segoe UI", 12, FontStyle.Bold);
-        using var captionFormat = new StringFormat { Alignment = StringAlignment.Center };
-        g.DrawString(ds4 ? "DualShock 4" : "Xbox 360", font, captionBrush, new RectangleF(145, 25, 210, 28), captionFormat);
         g.ResetTransform();
     }
 
     private void DrawStick(Graphics g, string logical, PointF center, string label)
     {
         var pressed = _snapshot?.State.Button(logical) ?? false;
-        var fillColor = pressed ? Color.FromArgb(74, 164, 255) : Color.FromArgb(31, 39, 51);
-        using var brush = new SolidBrush(fillColor); using var pen = new Pen(Color.FromArgb(94, 111, 132), 2);
+        var capturing = CaptureButton == logical;
+        var fillColor = capturing ? Color.FromArgb(130, 88, 30) : pressed ? Color.FromArgb(74, 164, 255) : Color.FromArgb(24, 34, 46);
+        using var brush = new SolidBrush(fillColor); using var pen = new Pen(capturing ? Color.FromArgb(249, 190, 74) : _hovered == logical ? Color.FromArgb(164, 211, 248) : Color.FromArgb(94, 111, 132), 2);
         var ring = new RectangleF(center.X - 29, center.Y - 29, 58, 58);
         g.DrawEllipse(pen, ring);
         var axis = logical == "l3" ? "l" : "r";
@@ -96,23 +105,61 @@ internal sealed class ControllerDiagram : Control
     private void DrawButton(Graphics g, string logical, string text, RectangleF rect)
     {
         var pressed = (_snapshot?.State.Button(logical) ?? false) || (logical == "l2" && _snapshot?.State.Axis("lt") > 0.1f) || (logical == "r2" && _snapshot?.State.Axis("rt") > 0.1f);
-        var active = Color.FromArgb(70, 164, 255); var idle = Color.FromArgb(31, 39, 51);
-        using var brush = new SolidBrush(pressed ? active : idle); using var pen = new Pen(pressed ? Color.FromArgb(130, 203, 255) : Color.FromArgb(94, 111, 132), 1.5f);
+        var active = Color.FromArgb(70, 164, 255); var idle = Color.FromArgb(24, 34, 46);
+        var capturing = CaptureButton == logical;
+        using var brush = new SolidBrush(capturing ? Color.FromArgb(130, 88, 30) : pressed ? active : idle);
+        using var pen = new Pen(capturing ? Color.FromArgb(249, 190, 74) : pressed || _hovered == logical ? Color.FromArgb(164, 211, 248) : Color.FromArgb(94, 111, 132), 1.5f);
         g.FillRoundedRectangle(brush, rect, 8); g.DrawRoundedRectangle(pen, rect, 8);
+        if (logical is "l2" or "r2")
+        {
+            var amount = Math.Clamp(_snapshot?.State.Axis(logical == "l2" ? "lt" : "rt") ?? 0, 0, 1);
+            using var meter = new SolidBrush(Color.FromArgb(160, 220, 255));
+            g.FillRectangle(meter, rect.X + 5, rect.Bottom - 4, (rect.Width - 10) * amount, 2);
+        }
         _targets[logical] = RectangleF.Inflate(rect, 4, 4);
-        using var font = new Font("Segoe UI", text.Length > 3 ? 7 : 11, FontStyle.Bold); using var ink = new SolidBrush(Color.FromArgb(231, 238, 247));
-        using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        var inkColor = !pressed && !capturing ? logical switch
+        {
+            "south" => Color.FromArgb(111, 220, 167), "east" => Color.FromArgb(255, 145, 153),
+            "west" => Color.FromArgb(133, 191, 255), "north" => Color.FromArgb(247, 210, 115),
+            _ => Color.FromArgb(231, 238, 247)
+        } : Color.White;
+        using var font = new Font("Segoe UI", logical is "share" or "options" ? 7 : 11, FontStyle.Bold); using var ink = new SolidBrush(inkColor);
+        using var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
         g.DrawString(text, font, ink, rect, format);
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
     {
         base.OnMouseClick(e);
-        var scale = Math.Min(ClientSize.Width / 500f, ClientSize.Height / 340f);
-        if (scale <= 0) return;
-        var x = (e.X - (ClientSize.Width - 500 * scale) / 2f) / scale;
-        var y = (e.Y - (ClientSize.Height - 340 * scale) / 2f) / scale;
-        foreach (var pair in _targets) if (pair.Value.Contains(x, y)) { LogicalButtonClicked?.Invoke(pair.Key); return; }
+        if (e.Button != MouseButtons.Left || _snapshot == null) return;
+        var logical = HitTest(e.Location);
+        if (logical != null) LogicalButtonClicked?.Invoke(logical);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        var hovered = _snapshot == null ? null : HitTest(e.Location);
+        if (_hovered == hovered) return;
+        _hovered = hovered;
+        Cursor = hovered == null ? Cursors.Default : Cursors.Hand;
+        Invalidate();
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        _hovered = null; Cursor = Cursors.Default; Invalidate();
+    }
+
+    private string? HitTest(Point point)
+    {
+        var scale = Math.Min(ClientSize.Width / ViewWidth, ClientSize.Height / ViewHeight);
+        if (scale <= 0) return null;
+        var x = (point.X - (ClientSize.Width - ViewWidth * scale) / 2f) / scale;
+        var y = (point.Y - (ClientSize.Height - ViewHeight * scale) / 2f) / scale + ViewTop;
+        foreach (var pair in _targets) if (pair.Value.Contains(x, y)) return pair.Key;
+        return null;
     }
 }
 

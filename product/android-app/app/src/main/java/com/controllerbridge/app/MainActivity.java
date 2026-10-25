@@ -310,9 +310,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
-        usbNote=text(tr("USB · Autorize a depuração e execute `adb reverse tcp:47652 tcp:47652`.","USB · Allow debugging and run `adb reverse tcp:47652 tcp:47652`."), 10, false);
+        usbNote=text(tr("USB · Conecte o cabo, autorize a depuração e escolha USB ao abrir o app no PC.","USB · Connect the cable, allow debugging, and choose USB when opening the PC app."), 10, false);
         usbNote.setTextColor(0xffb4c0cd); connectionCard.addView(usbNote);
-        wifiNote=text(tr("Wi-Fi · Mesma rede, host iniciado com `--wifi` e código do PC.","Wi-Fi · Same network, host started with `--wifi`, and the PC pairing code."), 10, false);
+        wifiNote=text(tr("Wi-Fi · Mesma rede, escolha Wi-Fi ao abrir o app no PC e informe o código exibido.","Wi-Fi · Same network, choose Wi-Fi when opening the PC app and enter its pairing code."), 10, false);
         wifiNote.setTextColor(0xffb4c0cd); connectionCard.addView(wifiNote);
         updateTransportUi();
 

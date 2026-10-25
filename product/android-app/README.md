@@ -9,10 +9,10 @@ Android client that forwards Bluetooth controllers recognized by the phone to th
 Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`; **EN** installs as `com.controllerbridge.app.en`, so both can be installed together. Each starts and stays in its named language.
 
 1. Pair the controller with Android in the system Bluetooth settings.
-2. Install/start the Controller Bridge Windows host and its required virtual controller driver on the PC. The new Windows dashboard displays the PC IP, port **47653**, and pairing code.
+2. Install/start the Controller Bridge Windows host and its required virtual controller driver on the PC. In Wi-Fi mode, the Windows dashboard displays the PC IP, port **47653**, and pairing code.
 3. In the phone app, choose **USB** or **Wi-Fi**:
-   - **USB:** connect the phone to the PC, unlock it, allow USB debugging, then run `adb reverse tcp:47652 tcp:47652` on the PC for that cable connection. Keep `127.0.0.1` as the host address.
-   - **Wi-Fi:** the Windows host starts Wi-Fi by default. Connect phone and PC to the same LAN, enter the PC's LAN IP, port **47653**, and the 32-character pairing code shown on the dashboard. The app pairs each PC once and saves the pairing key encrypted with Android Keystore. Wi-Fi uses authenticated AES-GCM messages; USB stays on local port 47652. The host does not add firewall rules automatically.
+   - **USB:** connect the phone to the PC, unlock it, and allow USB debugging. When opening the Windows host, press Enter to choose USB (or start it with `--usb`); it prepares `adb reverse tcp:47652 tcp:47652` automatically. Keep `127.0.0.1` as the host address. Restart the host after reconnecting the cable.
+   - **Wi-Fi:** choose Wi-Fi when opening the Windows host (or start it with `--wifi`). Connect phone and PC to the same LAN, enter the PC's LAN IP, port **47653**, and the 32-character pairing code shown on the dashboard. The app pairs each PC once and saves the pairing key encrypted with Android Keystore. Wi-Fi uses authenticated AES-GCM messages; USB stays on local port 47652. The host does not add firewall rules automatically.
 4. Tap **Connect to PC** and keep the app screen open while playing. Choose Xbox 360 or DualShock 4 output in either the phone app or Windows dashboard. On Windows, click a button on the controller diagram to choose it for remapping, then press the replacement physical button on the controller connected to the phone.
 5. The two app variants keep their own fixed language.
 
@@ -34,14 +34,14 @@ With Android SDK, Android Studio JBR Java 21, Gradle 8.2.1 and Android Gradle Pl
 .\Build.ps1
 ```
 
-The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.5.0.apk` and `dist/ControllerBridge-Android-EN-v0.5.0.apk`.
+The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.5.1.apk` and `dist/ControllerBridge-Android-EN-v0.5.1.apk`.
 
 ## Current limits
 
 - Capture works only while the app is open; background/locked-screen capture is not enabled.
 - Physical controller input, motion, color-light availability, screen-awake behavior, and gameplay forwarding still need validation on the target phone and controller.
 - Some third-party controllers may not expose every button/axis to Android; those inputs can be remapped when Android reports them.
-- Wi-Fi starts automatically when the PC host opens. Enter the PC LAN address, port, and pairing code displayed by the host. The app does not create router or firewall rules.
+- Choose Wi-Fi when opening the PC host and enter the PC LAN address, port, and pairing code displayed. The app does not create router or firewall rules.
 
 ---
 
@@ -56,10 +56,10 @@ Cliente Android que encaminha ao host Windows os controles Bluetooth reconhecido
 Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **EN** instala como `com.controllerbridge.app.en`, então as duas podem ficar instaladas juntas. Cada versão abre e permanece no idioma indicado no nome.
 
 1. Pareie o controle com o Android nas configurações Bluetooth do sistema.
-2. Instale/inicie no PC Windows o host Controller Bridge e o driver de controle virtual exigido por ele. O novo painel Windows mostra o IP do PC, a porta **47653** e o código de pareamento.
+2. Instale/inicie no PC Windows o host Controller Bridge e o driver de controle virtual exigido por ele. No modo Wi-Fi, o painel Windows mostra o IP do PC, a porta **47653** e o código de pareamento.
 3. No app do celular, escolha **USB** ou **Wi-Fi**:
-   - **USB:** conecte o celular ao PC, desbloqueie-o e autorize a depuração USB. A cada conexão do cabo, execute `adb reverse tcp:47652 tcp:47652` no PC. Mantenha o endereço do host como `127.0.0.1`.
-   - **Wi-Fi:** o host Windows inicia em Wi-Fi por padrão. Conecte celular e PC à mesma rede local e informe o IP do PC, a porta **47653** e o código de pareamento de 32 caracteres do painel. O pareamento é salvo por PC com a chave cifrada pelo Android Keystore. Wi-Fi usa mensagens autenticadas AES-GCM; USB continua na porta local 47652. O host não configura regras de firewall automaticamente.
+   - **USB:** conecte o celular ao PC, desbloqueie-o e autorize a depuração USB. Ao abrir o host Windows, pressione Enter para escolher USB (ou inicie com `--usb`); ele prepara `adb reverse tcp:47652 tcp:47652` automaticamente. Mantenha o endereço do host como `127.0.0.1`. Reinicie o host depois de reconectar o cabo.
+   - **Wi-Fi:** ao abrir o host Windows, escolha Wi-Fi (ou inicie com `--wifi`). Conecte celular e PC à mesma rede local e informe o IP do PC, a porta **47653** e o código de pareamento de 32 caracteres do painel. O pareamento é salvo por PC com a chave cifrada pelo Android Keystore. Wi-Fi usa mensagens autenticadas AES-GCM; USB continua na porta local 47652. O host não configura regras de firewall automaticamente.
 4. Toque em **Conectar ao PC** e deixe a tela do app aberta durante o jogo. Escolha a saída Xbox 360 ou DualShock 4 no celular ou no painel Windows. No Windows, clique em um botão do desenho e pressione o botão físico que deve substituí-lo no controle conectado ao celular.
 5. Cada variante mantém seu idioma fixo.
 
@@ -81,14 +81,14 @@ Com Android SDK, Java 21 do Android Studio JBR, Gradle 8.2.1 e Android Gradle Pl
 .\Build.ps1
 ```
 
-O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.5.0.apk` e `dist/ControllerBridge-Android-EN-v0.5.0.apk`.
+O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.5.1.apk` e `dist/ControllerBridge-Android-EN-v0.5.1.apk`.
 
 ## Limites atuais
 
 - A captura funciona somente enquanto o app está aberto; não há captura em segundo plano ou com a tela bloqueada.
 - Entrada física, giroscópio, disponibilidade da luz RGB, tela sempre ligada e encaminhamento para jogos ainda precisam ser verificados no celular e controle reais.
 - Alguns controles paralelos podem não expor todos os botões/eixos ao Android; essas entradas podem ser remapeadas quando o Android as reconhece.
-- O Wi-Fi inicia automaticamente quando o host do PC é aberto. Informe o IP local, a porta e o código de pareamento exibidos pelo host. O app não cria regras de roteador ou firewall.
+- Escolha Wi-Fi ao abrir o host do PC e informe o IP local, a porta e o código de pareamento exibidos. O app não cria regras de roteador ou firewall.
 
 
 

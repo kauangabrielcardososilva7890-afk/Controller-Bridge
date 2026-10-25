@@ -1,4 +1,4 @@
-name: Build and publish v0.5.0
+name: Build and publish Controller Bridge release
 
 on:
   push:
@@ -25,8 +25,8 @@ jobs:
         with:
           name: windows-packages
           path: |
-            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.0.zip
-            artifacts/windows/ControllerBridge-Windows-EN-v0.5.0.zip
+            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.1.zip
+            artifacts/windows/ControllerBridge-Windows-EN-v0.5.1.zip
           if-no-files-found: error
           retention-days: 2
 
@@ -81,14 +81,14 @@ jobs:
           en_apk="$(find app/build/outputs/apk/en/debug -maxdepth 1 -name '*.apk' -print -quit)"
           test -n "$pt_apk"
           test -n "$en_apk"
-          cp "$pt_apk" dist/ControllerBridge-Android-PT-BR-v0.5.0.apk
-          cp "$en_apk" dist/ControllerBridge-Android-EN-v0.5.0.apk
+          cp "$pt_apk" dist/ControllerBridge-Android-PT-BR-v0.5.1.apk
+          cp "$en_apk" dist/ControllerBridge-Android-EN-v0.5.1.apk
       - uses: actions/upload-artifact@v7
         with:
           name: android-packages
           path: |
-            product/android-app/dist/ControllerBridge-Android-PT-BR-v0.5.0.apk
-            product/android-app/dist/ControllerBridge-Android-EN-v0.5.0.apk
+            product/android-app/dist/ControllerBridge-Android-PT-BR-v0.5.1.apk
+            product/android-app/dist/ControllerBridge-Android-EN-v0.5.1.apk
           if-no-files-found: error
           retention-days: 2
 
@@ -97,7 +97,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-      github.event.head_commit.message == 'Build and publish v0.5.0 packages')
+      github.event.head_commit.message == 'Build and publish v0.5.1 packages')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
@@ -116,8 +116,8 @@ jobs:
           test "$(find . -maxdepth 1 -type f \( -name '*.apk' -o -name '*.zip' \) | wc -l)" -eq 4
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v0.5.0
-          name: Controller Bridge v0.5.0
+          tag_name: v0.5.1
+          name: Controller Bridge v0.5.1
           target_commitish: main
           draft: false
           prerelease: false
@@ -126,9 +126,9 @@ jobs:
           files: release-assets/*
           body: |
             ## English
-            Installable Android and Windows packages in PT-BR and English. Windows ZIPs include the EXE and required setup files. See the README for installation and connection instructions. SHA256SUMS.txt contains checksums for all four packages.
+            Installable Android and Windows packages in PT-BR and English. The Windows host restores the startup choice between USB (default) and Wi-Fi, improves the live controller dashboard and bundles its .NET runtime into one top-level ControllerBridge.exe. Keep the included setup files, verified driver installer, client library, and license notices beside the EXE after extraction. See the README for installation and connection instructions. SHA256SUMS.txt contains checksums for all four packages.
 
             ## Português
-            Pacotes instaláveis para Android e Windows em PT-BR e inglês. Os ZIPs Windows incluem o EXE e os arquivos necessários. Consulte o README para instruções de instalação e conexão. SHA256SUMS.txt contém os hashes dos quatro pacotes.
+            Pacotes instaláveis para Android e Windows em PT-BR e inglês. O host Windows restaura a escolha inicial entre USB (padrão) e Wi-Fi, melhora o painel de controles ao vivo e inclui o runtime .NET dentro de um único ControllerBridge.exe na raiz. Mantenha ao lado do EXE os arquivos de preparação, o instalador verificado do driver, a biblioteca cliente e os avisos de licença incluídos. Consulte o README para instruções de instalação e conexão. SHA256SUMS.txt contém os hashes dos quatro pacotes.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

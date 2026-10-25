@@ -5,11 +5,11 @@ namespace ControllerBridge.Host;
 public static class Program
 {
     [STAThread]
-    public static async Task<int> Main(string[] args)
+    public static int Main(string[] args)
     {
         try
         {
-            if (args.Contains("--self-test")) return await SelfTests.RunAsync();
+            if (args.Contains("--self-test")) return SelfTests.RunAsync().GetAwaiter().GetResult();
             var languageArg = Argument(args, "--lang");
             var english = HostLanguage.Resolve(languageArg) == "en";
             if (args.Contains("--version"))
@@ -22,7 +22,10 @@ public static class Program
             var diagnostic = args.Contains("--diagnostic");
             var packaged = File.Exists(Path.Combine(AppContext.BaseDirectory, "Bootstrap", "Prepare.ps1"));
             var wifiMode = StartupMode.UseWifi(args, english, packaged);
-            if (!args.Contains("--probe") && !args.Contains("--prepared") && !await Bootstrapper.PrepareAsync(wifiMode, diagnostic, english)) return 1;
+            // Keep the entry-point thread on its original STA until Application.Run starts.
+            // Awaiting setup here (before a WinForms synchronization context/message loop exists)
+            // resumes Main on a pool MTA thread, which breaks Clipboard and other OLE APIs.
+            if (!args.Contains("--probe") && !args.Contains("--prepared") && !Bootstrapper.PrepareAsync(wifiMode, diagnostic, english).GetAwaiter().GetResult()) return 1;
             var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(AppContext.BaseDirectory, "Nefarius.ViGEm.Client.dll");
             var profileDirectory = Argument(args, "--profiles") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "profiles");
             var port = int.Parse(Argument(args, "--port") ?? "47652");
@@ -113,7 +116,7 @@ public static class Program
             }, TaskScheduler.Default);
             Application.Run(dashboard);
             cancellation.Cancel();
-            try { await serverTask; }
+            try { serverTask.GetAwaiter().GetResult(); }
             finally { _ = commandReader; }
             return 0;
         }
@@ -147,7 +150,7 @@ public static class Program
     private static void PrintHelp(bool english)
     {
         Console.WriteLine(english
-            ? "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  Default: authenticated Wi-Fi on port 47653; opens the dashboard with IPs and pairing code.\n  --usb        Use USB/ADB Reverse on loopback port 47652 instead.\n  Type stop or parar in the console, or close the dashboard, to stop the host.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version."
-            : "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  Padrão: Wi-Fi autenticado na porta 47653; abre o painel com IPs e código de pareamento.\n  --usb        Usa USB/ADB Reverse na porta local 47652.\n  Digite stop ou parar no console, ou feche o painel, para encerrar.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.");
+            ? "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  Default: USB/ADB on loopback port 47652; press Enter to choose USB or type 2 for Wi-Fi.\n  Wi-Fi uses port 47653 and displays the PC IP and pairing code in the dashboard.\n  --usb / --wifi   Select a connection directly without the startup prompt.\n  Type stop or parar in the console, or close the dashboard, to stop the host.\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version."
+            : "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  Padrão: USB/ADB em 127.0.0.1:47652; pressione Enter para USB ou digite 2 para Wi-Fi.\n  Wi-Fi usa a porta 47653 e mostra o IP do PC e o código no painel.\n  --usb / --wifi   Escolhe a conexão diretamente, sem a pergunta inicial.\n  Digite stop ou parar no console, ou feche o painel, para encerrar.\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.");
     }
 }

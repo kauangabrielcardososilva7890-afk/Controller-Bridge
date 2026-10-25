@@ -69,7 +69,7 @@ final class BridgeClient implements AutoCloseable {
                     if (closed || !lifecycle.canContinueSetup()) throw new IOException("Conexão cancelada.");
                     if (!writerLoopStarted) { writerLoopStarted = true; writerWorker.execute(this::writerLoop); }
                 }
-                enqueueControl(new JSONObject().put("v",1).put("type","hello").put("client_id",installId).put("app_version","0.2.0"));
+                enqueueControl(new JSONObject().put("v",1).put("type","hello").put("client_id",installId).put("app_version",BuildConfig.VERSION_NAME));
                 String line; boolean welcomed = false;
                 while (!closed && (line = readBoundedLine(reader, secureChannel == null ? 262144 : 131072)) != null) {
                     JSONObject msg = new JSONObject(line);

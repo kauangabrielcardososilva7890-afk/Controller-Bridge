@@ -11,6 +11,7 @@ public static class SelfTests
     private static int _assertions;
     public static async Task<int> RunAsync()
     {
+        Check(Thread.CurrentThread.GetApartmentState() == ApartmentState.STA, "Windows entry point must stay on an STA thread for clipboard/OLE APIs.");
         var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
         var temporary = Path.Combine(temporaryRoot, "controller-bridge-tests-" + Guid.NewGuid().ToString("N"));
         try
@@ -86,6 +87,17 @@ public static class SelfTests
         Check(StartupMode.UseWifi(["--wifi", "--lang", "pt"], false, true), "Explicit Wi-Fi mode must stay enabled.");
         Check(!StartupMode.UseWifi(["--usb", "--lang", "pt"], false, true), "USB option must select USB explicitly.");
         Check(!StartupMode.UseWifi(["--diagnostic"], false, true), "Diagnostics must not prompt for a transport.");
+        var originalInput = Console.In;
+        try
+        {
+            Console.SetIn(new StringReader("\n"));
+            Check(!StartupMode.UseWifi([], true, true), "Packaged startup must prepare USB when Enter is pressed.");
+            Console.SetIn(new StringReader("2\n"));
+            Check(StartupMode.UseWifi([], true, true), "Packaged startup must allow choosing Wi-Fi.");
+            Console.SetIn(new StringReader("invalid\n1\n"));
+            Check(!StartupMode.UseWifi([], false, true), "Invalid selection must be retried before choosing USB.");
+        }
+        finally { Console.SetIn(originalInput); }
         Expect<ArgumentException>(() => StartupMode.UseWifi(["--usb", "--wifi"], false, true), "Conflicting USB and Wi-Fi modes must be rejected.");
     }
 
