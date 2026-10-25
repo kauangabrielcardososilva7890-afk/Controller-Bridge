@@ -17,6 +17,7 @@ public static class SelfTests
         {
             Directory.CreateDirectory(temporary);
             TestStateAndProjection();
+            TestLanguageSelection();
             TestMotionParsingAndReport();
             TestMotionProfilesAndSwitchRollback(Path.Combine(temporary, "motion-profiles"));
             TestSessionLifecycle(Path.Combine(temporary, "profiles"));
@@ -64,6 +65,18 @@ public static class SelfTests
         var digitalButtons = source.Buttons.ToDictionary(); digitalButtons["l2"] = true;
         var analogAxes = source.Axes.ToDictionary(); analogAxes["lt"] = .6f;
         Check(AxisProjection.TriggerValue(new(digitalButtons, analogAxes), "lt", "l2") == .6f, "Botão L2 não deve elevar um gatilho analógico ao máximo.");
+    }
+    private static void TestLanguageSelection()
+    {
+        var brazil = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+        var english = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+        Check(HostLanguage.Resolve(null, "pt-BR", english) == "pt", "Pacote PT-BR inicia em português mesmo com Windows em inglês.");
+        Check(HostLanguage.Resolve(null, "en", brazil) == "en", "Pacote EN inicia em inglês mesmo com Windows em português.");
+        Check(HostLanguage.Resolve("en", "pt-BR", brazil) == "en", "Override --lang en prevalece no pacote PT-BR.");
+        Check(HostLanguage.Resolve("pt", "en", english) == "pt", "Override --lang pt prevalece no pacote EN.");
+        Check(HostLanguage.Resolve(null, "auto", brazil) == "pt", "Build padrão acompanha Windows português.");
+        Check(HostLanguage.Resolve(null, "auto", english) == "en", "Build padrão acompanha Windows inglês.");
+        Expect<ArgumentException>(() => HostLanguage.Resolve("invalid", "en", english), "Idioma inválido é recusado.");
     }
 
     private static void TestMotionParsingAndReport()
