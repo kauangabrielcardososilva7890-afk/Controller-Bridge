@@ -5,6 +5,22 @@ $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
+$cacheRoot = Join-Path $PSScriptRoot '.bootstrap-cache'
+$env:NUGET_PACKAGES = Join-Path $cacheRoot 'nuget'
+New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+$dependencies = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'Bootstrap\Dependencies.json') | ConvertFrom-Json
+function Fetch-Pinned([string]$Url,[string]$Path,[string]$Sha256) {
+    if (!(Test-Path -LiteralPath $Path)) { Invoke-WebRequest -Uri $Url -OutFile $Path }
+    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ine $Sha256) { throw ('Dependency checksum failed: ' + [IO.Path]::GetFileName($Path)) }
+}
+$clientPackage = Join-Path $cacheRoot 'nefarius.vigem.client.1.21.256.nupkg'
+Fetch-Pinned $dependencies.client.url $clientPackage $dependencies.client.packageSha256
+$driverInstaller = Join-Path $cacheRoot 'ViGEmBus_1.22.0_x64_x86_arm64.exe'
+Fetch-Pinned $dependencies.driver.url $driverInstaller $dependencies.driver.sha256
+. (Join-Path $PSScriptRoot 'Bootstrap\Prepare.ps1') -LibraryOnly
+Assert-Installer $driverInstaller $dependencies.driver
+& (Join-Path $PSScriptRoot 'Bootstrap\Tests.ps1')
+if ($LASTEXITCODE -ne 0 -and $null -ne $LASTEXITCODE) { throw 'Bootstrap verification failed.' }
 $projectFile = Join-Path $PSScriptRoot 'ControllerBridge.Host.csproj'
 [xml]$project = Get-Content -Raw -LiteralPath $projectFile
 $version = [string]$project.Project.PropertyGroup.Version
@@ -17,8 +33,19 @@ $packages = @()
 try {
     foreach ($variant in @(@{ Name = 'PT-BR'; Language = 'pt-BR'; Override = 'en'; Marker = 'Wi-Fi fica desligado'; Opposite = 'Wi-Fi is off' }, @{ Name = 'EN'; Language = 'en'; Override = 'pt'; Marker = 'Wi-Fi is off'; Opposite = 'Wi-Fi fica desligado' })) {
         $stage = Join-Path $stagingRoot $variant.Name
-        dotnet publish $projectFile -c Release --self-contained false --ignore-failed-sources "-p:DefaultLanguage=$($variant.Language)" '-p:DebugType=None' -o $stage
+        dotnet publish $projectFile -c Release -r win-x64 --self-contained true --ignore-failed-sources "-p:RuntimeFrameworkVersion=$($dependencies.runtimeVersion)" '-p:PublishTrimmed=false' "-p:DefaultLanguage=$($variant.Language)" '-p:DebugType=None' -o $stage
         if ($LASTEXITCODE -ne 0) { throw "Publish failed for $($variant.Name)." }
+        foreach ($runtimeFile in @('hostfxr.dll','coreclr.dll','System.Private.CoreLib.dll')) { if (!(Test-Path -LiteralPath (Join-Path $stage $runtimeFile))) { throw ('Self-contained runtime missing: ' + $runtimeFile) } }
+        $archivePackage=[IO.Compression.ZipFile]::OpenRead($clientPackage)
+        try { [IO.Compression.ZipFileExtensions]::ExtractToFile($archivePackage.GetEntry('lib/netstandard2.0/Nefarius.ViGEm.Client.dll'), (Join-Path $stage 'Nefarius.ViGEm.Client.dll'),$true) } finally { $archivePackage.Dispose() }
+        if ((Get-FileHash -LiteralPath (Join-Path $stage 'Nefarius.ViGEm.Client.dll') -Algorithm SHA256).Hash -ine $dependencies.client.dllSha256) { throw 'Bundled client DLL hash failed.' }
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Bootstrap') -Destination (Join-Path $stage 'Bootstrap') -Recurse
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'ThirdParty') -Destination (Join-Path $stage 'ThirdParty') -Recurse
+        $runtimeNotices = Join-Path $env:NUGET_PACKAGES ("microsoft.netcore.app.runtime.win-x64\" + $dependencies.runtimeVersion)
+        Copy-Item -LiteralPath (Join-Path $runtimeNotices 'LICENSE.TXT') -Destination (Join-Path $stage 'ThirdParty\dotNET-Runtime-LICENSE.txt')
+        Copy-Item -LiteralPath (Join-Path $runtimeNotices 'THIRD-PARTY-NOTICES.TXT') -Destination (Join-Path $stage 'ThirdParty\dotNET-Runtime-ThirdPartyNotices.txt')
+        New-Item -ItemType Directory -Path (Join-Path $stage 'Installers') | Out-Null
+        Copy-Item -LiteralPath $driverInstaller -Destination (Join-Path $stage 'Installers\ViGEmBus_1.22.0_x64_x86_arm64.exe')
         $executable = Join-Path $stage 'ControllerBridge.exe'
         $reportedVersion = & $executable --version
         if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne "Controller Bridge $version") { throw "Unexpected executable version for $($variant.Name)." }
@@ -30,10 +57,15 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Self-test failed for $($variant.Name)." }
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'README.md') -Destination (Join-Path $stage 'README.md')
         $startText = if ($variant.Name -eq 'PT-BR') {
-            "Controller Bridge $version — Português do Brasil`r`nProjeto criado 100% com IA.`r`n`r`nExtraia todos os arquivos deste ZIP na mesma pasta. Execute ControllerBridge.exe.`r`nEste pacote inicia em português. Use --lang en para mudar para inglês.`r`nRequer Windows 11 x64, .NET 8 Runtime e dependências de controle virtual descritas no README.`r`nPara Wi-Fi, execute ControllerBridge.exe --wifi. Para USB, siga os passos ADB do README.`r`n"
+            "Controller Bridge $version — Português do Brasil`r`nProjeto criado 100% com IA.`r`n`r`n1. Extraia o ZIP inteiro. Conecte o celular por cabo, ative depuração USB e autorize o PC na tela do celular.`r`n2. Abra Iniciar-USB.cmd (ou ControllerBridge.exe) e mantenha o app Android aberto.`r`nO .NET e a biblioteca cliente já estão incluídos. Se faltar o driver, você escolherá abrir o instalador oficial incluído; o Windows mostrará UAC e o instalador visível. Cancelar interrompe a abertura do host.`r`nSe faltar ADB, a preparação mostrará a página oficial da Google para você aceitar os termos, baixar e informar o adb.exe. O Android SDK não é redistribuído.`r`nPara Wi-Fi, abra Iniciar-WiFi.cmd e siga o código/IP exibidos. Idioma: --lang en ou --lang pt.`r`nRequer Windows 11 x64. Não execute arquivos diretamente de dentro do ZIP; mantenha todas as pastas extraídas juntas.`r`n"
         } else {
-            "Controller Bridge $version — English`r`n100% AI-created project.`r`n`r`nExtract all ZIP files into the same folder. Run ControllerBridge.exe.`r`nThis package starts in English. Use --lang pt to switch to Portuguese.`r`nRequires Windows 11 x64, .NET 8 Runtime, and virtual controller dependencies described in README.`r`nFor Wi-Fi, run ControllerBridge.exe --wifi. For USB, follow the README ADB steps.`r`n"
+            "Controller Bridge $version — English`r`n100% AI-created project.`r`n`r`n1. Extract the entire ZIP. Connect your phone by cable, enable USB debugging and approve the PC on the phone.`r`n2. Open Start-USB.cmd (or ControllerBridge.exe), and keep the Android app open.`r`n.NET and the client library are included. If the driver is missing, you choose whether to open the bundled official installer; Windows shows UAC and the visible installer. Cancelling stops the host startup.`r`nIf ADB is missing, setup shows Google's official page so you can accept the terms, download and select adb.exe. Android SDK files are not redistributed.`r`nFor Wi-Fi, open Start-WiFi.cmd and follow the displayed code/IP. Language: --lang en or --lang pt.`r`nRequires Windows 11 x64. Do not run files inside the ZIP; keep all extracted files/folders together.`r`n"
         }
+        $launchLanguage=if ($variant.Name -eq 'PT-BR') { 'pt' } else { 'en' }
+        $usbName=if ($variant.Name -eq 'PT-BR') { 'Iniciar-USB.cmd' } else { 'Start-USB.cmd' }
+        $wifiName=if ($variant.Name -eq 'PT-BR') { 'Iniciar-WiFi.cmd' } else { 'Start-WiFi.cmd' }
+        Set-Content -LiteralPath (Join-Path $stage $usbName) -Encoding ascii -Value "@echo off`r`n`"%~dp0ControllerBridge.exe`" --lang $launchLanguage`r`nif errorlevel 1 pause`r`n"
+        Set-Content -LiteralPath (Join-Path $stage $wifiName) -Encoding ascii -Value "@echo off`r`n`"%~dp0ControllerBridge.exe`" --wifi --lang $launchLanguage`r`nif errorlevel 1 pause`r`n"
         Set-Content -LiteralPath (Join-Path $stage 'START-HERE.txt') -Encoding utf8 -Value $startText
         Set-Content -LiteralPath (Join-Path $stage 'VERSION.txt') -Encoding utf8 -Value "ControllerBridge $version`r`nDefaultLanguage=$($variant.Language)"
         $archive = Join-Path $outputRoot "ControllerBridge-Windows-$($variant.Name)-v$version.zip"
@@ -49,4 +81,3 @@ try {
     if (!$resolvedStage.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase) -or !(Split-Path $resolvedStage -Leaf).StartsWith('.staging-')) { throw 'Unsafe package cleanup path.' }
     if (Test-Path -LiteralPath $resolvedStage) { Remove-Item -LiteralPath $resolvedStage -Recurse -Force }
 }
-

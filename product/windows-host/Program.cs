@@ -17,6 +17,7 @@ public static class Program
             if (args.Contains("--help")) { PrintHelp(english); return 0; }
             string Tr(string pt, string en) => english ? en : pt;
             var diagnostic = args.Contains("--diagnostic");
+            if (!args.Contains("--probe") && !args.Contains("--prepared") && !await Bootstrapper.PrepareAsync(args.Contains("--wifi"), diagnostic, english)) return 1;
             var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(AppContext.BaseDirectory, "Nefarius.ViGEm.Client.dll");
             var profileDirectory = Argument(args, "--profiles") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "profiles");
             var port = int.Parse(Argument(args, "--port") ?? "47652");
@@ -104,4 +105,3 @@ public static class Program
             : "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  --wifi       Ativa também Wi-Fi autenticado e criptografado na porta 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.\nUSB/ADB continua local. Wi-Fi fica desligado sem a opção --wifi.");
     }
 }
-

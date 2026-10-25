@@ -1,0 +1,15 @@
+{
+  "client": {
+    "version": "1.21.256",
+    "url": "https://api.nuget.org/v3-flatcontainer/nefarius.vigem.client/1.21.256/nefarius.vigem.client.1.21.256.nupkg",
+    "packageSha256": "ff460031b33e0882cd1166fe2d072d0fe97578480c61ed85dccfa6c930fdb55e",
+    "dllSha256": "4458301000b732d115521e99f9936f4edb70d6ceb3036ef158715e0e6b8902e0"
+  },
+  "driver": {
+    "version": "1.22.0",
+    "url": "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe",
+    "sha256": "89220a7865076b342892f98865f3499fb7c4cfd673159e89d352c360fd014c6a",
+    "publisher": "Nefarius Software Solutions e.U."
+  },
+  "runtimeVersion": "8.0.32"
+}

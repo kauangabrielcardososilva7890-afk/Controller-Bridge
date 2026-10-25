@@ -1,29 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
-  <title id="title">Perfis independentes e saídas virtuais</title>
-  <desc id="desc">Dois controles físicos têm perfis independentes e cada um pode escolher a saída virtual Xbox 360 ou DualShock 4.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">Perfis e saídas independentes por controle</title>
+  <desc id="desc">Cada controle conectado tem seu próprio perfil e sua própria saída virtual no PC. Alterar um perfil não modifica o outro.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101722"/><stop offset="1" stop-color="#17263b"/></linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#02050a" flood-opacity=".4"/></filter>
-    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M1 1 10 6 1 11" fill="none" stroke="#7cb2ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111821"/><stop offset="1" stop-color="#17263a"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 9 5 1 9" fill="none" stroke="#79b4ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>text{font-family:"Segoe UI",Arial,sans-serif}.card{fill:#202b39;stroke:#34465c;stroke-width:2}.profile{fill:#1c2a3a;stroke:#45658d;stroke-width:2}.output{fill:#193352;stroke:#397bf4;stroke-width:2}.name{fill:#f0f5fb;font-size:19px;font-weight:700}.sub{fill:#9bacbf;font-size:14px}.arrow{fill:none;stroke:#79b4ff;stroke-width:3.5;stroke-linecap:round;marker-end:url(#arrow)}</style>
   </defs>
-  <rect width="1200" height="440" rx="30" fill="url(#bg)"/>
-  <text x="600" y="54" fill="#f4f7fb" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="25" font-weight="700">Configure cada controle de forma independente</text>
-  <g filter="url(#shadow)">
-    <rect x="54" y="112" width="278" height="120" rx="20" fill="#202d3d" stroke="#34465b" stroke-width="2"/><rect x="54" y="260" width="278" height="120" rx="20" fill="#202d3d" stroke="#34465b" stroke-width="2"/>
-    <rect x="454" y="112" width="270" height="120" rx="20" fill="#1c2a3a" stroke="#41618a" stroke-width="2"/><rect x="454" y="260" width="270" height="120" rx="20" fill="#1c2a3a" stroke="#41618a" stroke-width="2"/>
-    <rect x="854" y="112" width="290" height="120" rx="20" fill="#193352" stroke="#397cf6" stroke-width="2"/><rect x="854" y="260" width="290" height="120" rx="20" fill="#193352" stroke="#397cf6" stroke-width="2"/>
-  </g>
-  <g fill="#e6edf6" font-family="Segoe UI,Arial,sans-serif">
-    <text x="186" y="157" text-anchor="middle" font-size="18" font-weight="700">Controle 1</text><text x="186" y="188" text-anchor="middle" font-size="14" fill="#96a9bf">botões · analógicos · giroscópio</text>
-    <text x="186" y="305" text-anchor="middle" font-size="18" font-weight="700">Controle 2</text><text x="186" y="336" text-anchor="middle" font-size="14" fill="#96a9bf">configurações independentes</text>
-    <text x="589" y="157" text-anchor="middle" font-size="18" font-weight="700">Perfil 1</text><text x="589" y="188" text-anchor="middle" font-size="14" fill="#96a9bf">mapeamento automático ou personalizado</text>
-    <text x="589" y="305" text-anchor="middle" font-size="18" font-weight="700">Perfil 2</text><text x="589" y="336" text-anchor="middle" font-size="14" fill="#96a9bf">remapeie sem alterar o perfil 1</text>
-    <text x="999" y="157" text-anchor="middle" font-size="18" font-weight="700">Saída Xbox 360</text><text x="999" y="188" text-anchor="middle" font-size="14" fill="#a8c7f2">controle virtual no Windows</text>
-    <text x="999" y="305" text-anchor="middle" font-size="18" font-weight="700">Saída DualShock 4</text><text x="999" y="336" text-anchor="middle" font-size="14" fill="#a8c7f2">controle virtual no Windows</text>
-  </g>
-  <g fill="none" stroke="#7cb2ff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"><path d="M346 171h86"/><path d="M346 319h86"/><path d="M738 171h86"/><path d="M738 319h86"/></g>
-  <g fill="#aebed0" transform="translate(87 138)" stroke="#aebed0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 13c-9 0-14 9-17 21L3 61c-2 9 7 13 13 7l13-12h23l13 12c6 6 15 2 13-7l-4-27c-3-12-8-21-17-21H24Z" fill="none"/><path d="M25 29v17M16 37h18M53 34h1M63 43h1"/></g>
-  <g fill="#aebed0" transform="translate(87 286)" stroke="#aebed0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 13c-9 0-14 9-17 21L3 61c-2 9 7 13 13 7l13-12h23l13 12c6 6 15 2 13-7l-4-27c-3-12-8-21-17-21H24Z" fill="none"/><path d="M25 29v17M16 37h18M53 34h1M63 43h1"/></g>
-  <text x="600" y="417" fill="#8192a8" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="14">Escolha uma saída do PC para cada controle</text>
-</svg>
+  <rect width="1200" height="560" rx="28" fill="url(#background)"/>
+  <text x="600" y="62" text-anchor="middle" fill="#f4f7fb" font-size="28" font-weight="700">Cada controle tem seu próprio perfil</text>
+  <text x="600" y="91" text-anchor="middle" fill="#9bacbf" font-size="15">Edite um controle sem alterar os demais</text>
 
+  <!-- Linha do controle 1 -->
+  <rect class="card" x="48" y="145" width="300" height="140" rx="20"/>
+  <rect class="profile" x="450" y="145" width="300" height="140" rx="20"/>
+  <rect class="output" x="852" y="145" width="300" height="140" rx="20"/>
+  <circle cx="78" cy="175" r="15" fill="#315b91"/><text x="78" y="180" text-anchor="middle" fill="#eaf3ff" font-size="13" font-weight="700">01</text>
+  <g transform="translate(76 204) scale(.55)" fill="none" stroke="#c7d5e5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M42 15C22 15 13 30 8 52L1 88c-3 15 11 22 21 11l20-20h52l20 20c10 11 24 4 21-11l-7-36c-5-22-14-37-34-37Z"/><path d="M43 39v30M28 54h30M92 47h1M109 63h1"/></g>
+  <text class="name" x="214" y="205" text-anchor="middle">Controle 1</text><text class="sub" x="214" y="233" text-anchor="middle">Entrada física</text>
+  <path class="arrow" d="M362 215H434"/>
+  <g transform="translate(490 190)" fill="none" stroke="#79b4ff" stroke-width="4" stroke-linecap="round"><path d="M0 5h32M0 20h32M0 35h32"/><circle cx="10" cy="5" r="5" fill="#1c2a3a"/><circle cx="24" cy="20" r="5" fill="#1c2a3a"/><circle cx="14" cy="35" r="5" fill="#1c2a3a"/></g>
+  <text class="name" x="626" y="205" text-anchor="middle">Perfil 1</text><text class="sub" x="626" y="233" text-anchor="middle">Mapeamento e ajustes próprios</text>
+  <path class="arrow" d="M764 215H836"/>
+  <rect x="890" y="188" width="58" height="42" rx="5" fill="#111a25" stroke="#a9c9f1" stroke-width="3"/><path d="M919 230v10m-17 0h34" stroke="#a9c9f1" stroke-width="3" stroke-linecap="round"/>
+  <text class="name" x="1030" y="205" text-anchor="middle">Saída virtual 1</text><text class="sub" x="1030" y="233" text-anchor="middle">Tipo escolhido no PC</text>
+
+  <!-- Linha do controle 2 -->
+  <rect class="card" x="48" y="325" width="300" height="140" rx="20"/>
+  <rect class="profile" x="450" y="325" width="300" height="140" rx="20"/>
+  <rect class="output" x="852" y="325" width="300" height="140" rx="20"/>
+  <circle cx="78" cy="355" r="15" fill="#315b91"/><text x="78" y="360" text-anchor="middle" fill="#eaf3ff" font-size="13" font-weight="700">02</text>
+  <g transform="translate(76 384) scale(.55)" fill="none" stroke="#c7d5e5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M42 15C22 15 13 30 8 52L1 88c-3 15 11 22 21 11l20-20h52l20 20c10 11 24 4 21-11l-7-36c-5-22-14-37-34-37Z"/><path d="M43 39v30M28 54h30M92 47h1M109 63h1"/></g>
+  <text class="name" x="214" y="385" text-anchor="middle">Controle 2</text><text class="sub" x="214" y="413" text-anchor="middle">Entrada física</text>
+  <path class="arrow" d="M362 395H434"/>
+  <g transform="translate(490 370)" fill="none" stroke="#79b4ff" stroke-width="4" stroke-linecap="round"><path d="M0 5h32M0 20h32M0 35h32"/><circle cx="10" cy="5" r="5" fill="#1c2a3a"/><circle cx="24" cy="20" r="5" fill="#1c2a3a"/><circle cx="14" cy="35" r="5" fill="#1c2a3a"/></g>
+  <text class="name" x="626" y="385" text-anchor="middle">Perfil 2</text><text class="sub" x="626" y="413" text-anchor="middle">Independente do perfil 1</text>
+  <path class="arrow" d="M764 395H836"/>
+  <rect x="890" y="368" width="58" height="42" rx="5" fill="#111a25" stroke="#a9c9f1" stroke-width="3"/><path d="M919 410v10m-17 0h34" stroke="#a9c9f1" stroke-width="3" stroke-linecap="round"/>
+  <text class="name" x="1030" y="385" text-anchor="middle">Saída virtual 2</text><text class="sub" x="1030" y="413" text-anchor="middle">Configurada separadamente</text>
+
+  <text x="600" y="515" text-anchor="middle" fill="#8497ad" font-size="14">Cada entrada usa seu próprio perfil e saída no PC</text>
+</svg>

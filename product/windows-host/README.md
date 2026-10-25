@@ -1,94 +1,77 @@
-# Controller Bridge — Windows Host
+# Controller Bridge — Windows 0.3.1
 
-> **100% AI-created project.** Controller Bridge connects Bluetooth game controllers paired with an Android phone to virtual controllers on Windows 11.
+> **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
 ## English
 
-### Download and requirements
+### Start in two main steps
 
-- Download the Windows ZIP for your preferred language: `ControllerBridge-Windows-PT-BR-v0.3.0.zip` or `ControllerBridge-Windows-EN-v0.3.0.zip`. Download the Android package from the same release. Extract the whole Windows ZIP before running `ControllerBridge.exe`; keep its DLL and runtime configuration files together.
-- Windows 11 x64 and the .NET 8 Runtime are required.
-- Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. The PT-BR package starts in Portuguese and the EN package starts in English; `--lang en` or `--lang pt` overrides that choice. Source builds with `DefaultLanguage=auto` follow Windows language.
-- On Android, pair the PS4, Xbox, or other supported Bluetooth gamepad in system Bluetooth settings.
+1. Download `ControllerBridge-Windows-EN-v0.3.1.zip` (or the PT-BR variant), extract the **whole ZIP**, connect your phone by a data USB cable, enable USB debugging and approve this PC on the phone.
+2. Open **Start-USB.cmd** (or `ControllerBridge.exe`) and keep the Android app open during play.
 
-### Connect over USB
+The ZIP already includes a private .NET 8.0.32 runtime and the official client library. You do not need to install .NET or copy DLLs. Keep all extracted files and folders together.
 
-1. Enable Developer options and USB debugging on Android, connect the phone by USB, unlock it and approve the computer.
-2. In PowerShell, run `adb reverse tcp:47652 tcp:47652`. If `adb` is not on PATH, use the Android SDK `platform-tools\adb.exe` path.
-3. Start `ControllerBridge.exe` and keep its window open.
-4. Open the Android app, choose the controller and virtual output (Xbox 360 or DualShock 4), then tap **Connect to PC**. Keep the app in the foreground during play.
+If the virtual controller driver is missing, setup asks whether to open the **bundled official ViGEmBus 1.22.0 installer**. It verifies the pinned SHA-256 and vendor signature first; Windows displays UAC and the installer stays visible. You approve the installation and its license in the normal installer. Cancelling stops host startup. No driver is installed silently, and this project's build/test does not run that installer.
 
-Use **Diagnostic mode** (`ControllerBridge.exe --diagnostic`) to view incoming input without creating virtual controllers. Profiles and mappings are managed in the Android app and stored on the PC under `%LOCALAPPDATA%\ControllerBridge\profiles`.
+Setup locates ADB in Android Studio/SDK, PATH or a saved location, selects an authorized phone and runs `adb -s <phone> reverse tcp:47652 tcp:47652`. An `unauthorized` phone stops setup with instructions to unlock it and approve USB debugging; restart the launcher afterward. If several phones are connected, choose the intended phone. Two gamepads connected to that phone still work as independent controllers.
 
-### Connect over Wi-Fi
+**Only if ADB is missing:** setup offers to open Google's [official Platform Tools page](https://developer.android.com/tools/releases/platform-tools). Accept Google's terms, download/extract it, then select or paste the path to `adb.exe`. Android SDK files are not redistributed or downloaded silently. You normally do this once.
 
-1. Connect the PC and phone to the same local network. Start `ControllerBridge.exe --wifi` (or add `--diagnostic` for a receiver-only test).
-2. The Windows window displays the PC's active LAN IPv4 addresses, port `47653`, and a 32-character pairing code. You can also run `ipconfig` in PowerShell and find **IPv4 Address** for the active Wi-Fi/Ethernet adapter. In the Android app choose **Wi-Fi**, enter that PC IP and port `47653`, paste the displayed pairing code, then connect.
-3. If Windows Firewall asks, allow Controller Bridge on your **private network only**. If the phone cannot connect, check that the PC/phone share a network and that the private-network firewall permission is enabled. The host does not create firewall rules automatically.
+### Optional Wi-Fi
 
-Pairing authenticates both devices and encrypts/authenticates each input and profile message. The code is saved under `%LOCALAPPDATA%\ControllerBridge\pairing.key`; Android remembers it for that host. Keep the code private. To reset pairing, stop the host, delete that key file, restart with `--wifi`, and enter the new code on Android. Existing pairings then stop working. `--pairing-file path` selects another key file, `--wifi-port N` changes the LAN port, and `--wifi-bind IP` restricts the listener to one PC address. Wi-Fi is off by default; the USB/ADB loopback listener continues alongside it when enabled.
+Open **Start-WiFi.cmd**, connect PC and phone to the same LAN, then choose Wi-Fi in Android and enter the displayed PC IPv4, port **47653** and pairing code. You can also find IPv4 with `ipconfig`. If Windows Firewall asks, allow Controller Bridge **only on your private network**. No firewall rule is created automatically.
 
-### Features and current limits
+Pairing uses mutual authentication and authenticated encryption. The host remembers its key in `%LOCALAPPDATA%\ControllerBridge\pairing.key`. To reset all pairings, stop the host and delete that key file, then restart Wi-Fi and pair again. Advanced options: `--wifi`, `--wifi-port N`, `--wifi-bind IP`, `--pairing-file path`. USB uses loopback port47652 and stays available with Wi-Fi enabled.
 
-- Multiple paired controllers with separate profiles and Xbox 360 / DualShock 4 output selection.
-- Automatic standard mapping with per-button remapping and axis calibration.
-- DS4 gyro pass-through can be enabled or disabled per profile when the controller exposes compatible motion sensors.
-- USB via ADB Reverse and opt-in authenticated, encrypted Wi-Fi are supported.
-- The Windows host currently runs in a terminal. USB uses loopback only; `--wifi` enables the separate LAN listener. It does not hide or modify controllers plugged directly into Windows. The Android app manages DS4 light color only if Android exposes an RGB light for that controller.
-- Xbox virtual outputs share Windows' four XInput slots with native controllers.
-- This project does not redistribute the virtual bus driver or its client library; install them separately.
-- ViGEmBus is an external dependency whose upstream repository is archived; check its official release page before installing.
+### Controls and language
 
-### Build from source
+- Each phone-connected controller has a separate profile and Xbox 360 or DS4 output; native PC controllers remain native. Xbox outputs share Windows' four XInput positions.
+- Button remapping, axis calibration, DS4 gyro and exposed RGB lights are managed in Android. Sensor/light support depends on what Android exposes for that controller.
+- PT-BR and EN packages have their own initial language. `--lang pt` or `--lang en` overrides it. `--version` prints the version; `--help` lists options.
+- `--diagnostic` receives input without creating virtual outputs. `--prepared` skips package preparation for advanced/manual setups.
+- Profiles are saved under `%LOCALAPPDATA%\ControllerBridge\profiles`.
 
-Install the .NET 8 SDK and run `product/windows-host/Build.ps1`. The output is `ControllerBridge.exe`.
+### Included dependencies and source builds
 
-Run `product/windows-host/Package-Release.ps1` to generate both language ZIPs and `SHA256SUMS.txt` under `product/windows-host/artifacts`. The script builds version 0.3.0, checks each default language and its override, and runs self-tests before packaging. It does not publish anything. `Build.ps1 -DefaultLanguage pt-BR` or `-DefaultLanguage en` builds one specific variant; the default is `auto`. Use `ControllerBridge.exe --version` to inspect the application version.
+The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes its MIT license and third-party notices. Required notices and upstream attribution are in **ThirdParty/**. The signed driver installer is unmodified; the upstream ViGEm project is archived. The client package and driver installer are pinned by hash in `Bootstrap/Dependencies.json` and checked while packaging; driver signature is checked again before opening it.
+
+`Build.ps1` builds a developer version using the installed .NET 8 SDK. `Package-Release.ps1` publishes self-contained Windows x64 PT-BR/EN packages, verifies language/version and tests, bundles the verified dependencies, then writes ZIPs and `SHA256SUMS.txt` under `artifacts/`. It downloads from official sources when its ignored build cache is missing. It never installs the driver or publishes a release.
 
 ---
 
 ## Português
 
-> **Projeto criado 100% com IA.** O Controller Bridge conecta controles Bluetooth pareados com um celular Android a controles virtuais no Windows 11.
+> **Projeto criado 100% com IA.** Encaminha controles Bluetooth conectados ao Android para controles virtuais separados no Windows 11.
 
-### Download e requisitos
+### Iniciar em duas etapas principais
 
-- Baixe o ZIP Windows do idioma desejado: `ControllerBridge-Windows-PT-BR-v0.3.0.zip` ou `ControllerBridge-Windows-EN-v0.3.0.zip`. Baixe o pacote Android da mesma versão. Extraia o ZIP Windows inteiro antes de executar `ControllerBridge.exe`; mantenha as DLLs e os arquivos de configuração do runtime juntos.
-- É necessário Windows 11 x64 e o Runtime do .NET 8.
-- Instale o [driver oficial ViGEmBus](https://github.com/nefarius/ViGEmBus/releases). Baixe o [pacote NuGet Nefarius.ViGEm.Client](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), abra o `.nupkg` como ZIP e copie `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` para junto de `ControllerBridge.exe`. O pacote PT-BR inicia em português e o pacote EN inicia em inglês; use `--lang pt` ou `--lang en` para alterar essa escolha. Builds do código-fonte com `DefaultLanguage=auto` acompanham o idioma do Windows.
-- No Android, pareie o controle de PS4, Xbox ou outro controle Bluetooth compatível nas configurações do sistema.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.3.1.zip` (ou a variante EN), extraia o **ZIP inteiro**, conecte o celular por cabo USB de dados, ative a depuração USB e autorize este PC na tela do celular.
+2. Abra **Iniciar-USB.cmd** (ou `ControllerBridge.exe`) e mantenha o app Android aberto durante o jogo.
 
-### Conectar por USB
+O ZIP já contém um runtime privado do .NET 8.0.32 e a biblioteca cliente oficial. Você não precisa instalar .NET nem copiar DLLs. Mantenha todos os arquivos e pastas extraídos juntos.
 
-1. Ative as Opções do desenvolvedor e a depuração USB no Android, conecte o celular ao PC, desbloqueie e autorize o computador.
-2. No PowerShell, execute `adb reverse tcp:47652 tcp:47652`. Se `adb` não estiver no PATH, use o caminho do `platform-tools\adb.exe` do Android SDK.
-3. Inicie `ControllerBridge.exe` e mantenha a janela aberta.
-4. Abra o app Android, escolha o controle e a saída virtual (Xbox 360 ou DualShock 4) e toque em **Conectar ao PC**. Mantenha o app em primeiro plano durante o jogo.
+Se faltar o driver de controle virtual, a preparação pergunta se você deseja abrir o **instalador oficial ViGEmBus 1.22.0 incluído**. Antes, ela verifica o SHA-256 fixado e a assinatura do fornecedor; o Windows mostra o UAC e o instalador fica visível. Você autoriza a instalação e a licença no instalador normal. Cancelar interrompe a abertura do host. Nenhum driver é instalado silenciosamente, e o processo de compilação/teste deste projeto não executa esse instalador.
 
-Use o **Modo de diagnóstico** (`ControllerBridge.exe --diagnostic`) para visualizar os comandos recebidos sem criar controles virtuais. Os perfis e mapeamentos são gerenciados no app Android e salvos no PC em `%LOCALAPPDATA%\ControllerBridge\profiles`.
+A preparação localiza ADB no Android Studio/SDK, no PATH ou no local salvo, seleciona um celular autorizado e executa `adb -s <celular> reverse tcp:47652 tcp:47652`. Um celular `unauthorized` interrompe a preparação e mostra como desbloquear e autorizar a depuração USB; depois, inicie novamente. Se houver vários celulares, escolha o desejado. Dois controles conectados ao mesmo celular continuam independentes.
 
-### Conectar por Wi-Fi
+**Somente se faltar ADB:** a preparação oferece abrir a [página oficial do Platform Tools da Google](https://developer.android.com/tools/releases/platform-tools). Aceite os termos da Google, baixe/extraia e selecione ou cole o caminho de `adb.exe`. Os arquivos do Android SDK não são redistribuídos nem baixados silenciosamente. Normalmente isso só precisa ser feito uma vez.
 
-1. Conecte PC e celular à mesma rede local. Inicie `ControllerBridge.exe --wifi` (adicione `--diagnostic` para testar somente a recepção).
-2. A janela do Windows mostra os endereços IPv4 locais ativos do PC, a porta `47653` e um código de pareamento com 32 caracteres. Você também pode executar `ipconfig` no PowerShell e localizar **Endereço IPv4** do adaptador Wi-Fi/Ethernet ativo. No app Android escolha **Wi-Fi**, informe esse IP do PC e a porta `47653`, cole o código exibido e conecte.
-3. Se o Firewall do Windows perguntar, permita o Controller Bridge **somente na rede privada**. Se o celular não conectar, confira a rede compartilhada e a permissão do firewall para rede privada. O host não cria regras de firewall automaticamente.
+### Wi-Fi opcional
 
-O pareamento autentica os dois dispositivos e criptografa/autentica cada mensagem de comando e perfil. O código fica salvo em `%LOCALAPPDATA%\ControllerBridge\pairing.key`; o Android o memoriza para esse host. Mantenha o código privado. Para refazer o pareamento, feche o host, apague esse arquivo de chave, inicie novamente com `--wifi` e informe o código novo no Android. Os pareamentos anteriores deixam de funcionar. `--pairing-file caminho` escolhe outro arquivo de chave, `--wifi-port N` muda a porta de rede e `--wifi-bind IP` limita a escuta a um endereço do PC. Wi-Fi fica desligado por padrão; a conexão USB/ADB local continua disponível ao mesmo tempo quando ele é ativado.
+Abra **Iniciar-WiFi.cmd**, conecte PC e celular à mesma rede e escolha Wi-Fi no Android. Informe o IPv4 do PC exibido, a porta **47653** e o código de pareamento. Também é possível localizar o IPv4 com `ipconfig`. Se o Firewall do Windows perguntar, permita o Controller Bridge **somente na rede privada**. Nenhuma regra de firewall é criada automaticamente.
 
-### Recursos e limites atuais
+O pareamento usa autenticação mútua e criptografia autenticada. O host guarda a chave em `%LOCALAPPDATA%\ControllerBridge\pairing.key`. Para refazer todos os pareamentos, feche o host, apague esse arquivo, reinicie Wi-Fi e pareie novamente. Opções avançadas: `--wifi`, `--wifi-port N`, `--wifi-bind IP`, `--pairing-file caminho`. USB usa a porta local47652 e continua disponível com Wi-Fi ativado.
 
-- Vários controles pareados, com perfis separados e escolha de saída Xbox 360 / DualShock 4.
-- Mapeamento padrão automático, remapeamento individual de botões e calibração de eixos.
-- O giroscópio do DS4 pode ser ativado ou desativado por perfil quando o controle expõe sensores de movimento compatíveis. A cor da luz física do controle não está disponível nesta versão.
-- Conexão USB por ADB Reverse e Wi-Fi opcional autenticado e criptografado disponíveis.
-- O host Windows funciona pelo terminal. USB usa somente a conexão local; `--wifi` ativa a escuta separada na rede. Ele não oculta nem altera controles conectados diretamente ao Windows. O app Android controla a cor da luz do DS4 somente quando Android expõe uma luz RGB para esse controle.
-- Saídas virtuais Xbox compartilham as quatro posições XInput do Windows com controles nativos.
-- Este projeto não redistribui o driver de barramento virtual nem sua biblioteca cliente; instale-os separadamente.
-- ViGEmBus é uma dependência externa e o repositório original está arquivado; confira a página oficial de versões antes de instalar.
+### Controles e idioma
 
-### Compilar do código-fonte
+- Cada controle conectado ao celular tem perfil separado e saída Xbox 360 ou DS4; controles nativos do PC continuam nativos. Saídas Xbox compartilham as quatro posições XInput do Windows.
+- Remapeamento, calibração de eixos, giroscópio DS4 e luz RGB exposta são gerenciados no Android. Sensores/luzes dependem do que o Android disponibiliza para aquele controle.
+- Os pacotes PT-BR e EN têm seu próprio idioma inicial. `--lang pt` ou `--lang en` altera essa escolha. `--version` mostra a versão; `--help` lista opções.
+- `--diagnostic` recebe comandos sem criar controles virtuais. `--prepared` pula a preparação do pacote para configurações avançadas/manuais.
+- Os perfis ficam em `%LOCALAPPDATA%\ControllerBridge\profiles`.
 
-Instale o .NET 8 SDK e execute `product/windows-host/Build.ps1`. O resultado é `ControllerBridge.exe`.
+### Dependências incluídas e compilação
 
-Execute `product/windows-host/Package-Release.ps1` para gerar os dois ZIPs de idioma e `SHA256SUMS.txt` em `product/windows-host/artifacts`. O script compila a versão 0.3.0, confere o idioma inicial e a troca manual de cada variante e executa os testes antes de empacotar. Ele não publica nada. `Build.ps1 -DefaultLanguage pt-BR` ou `-DefaultLanguage en` compila uma variante específica; o padrão é `auto`. Use `ControllerBridge.exe --version` para conferir a versão do aplicativo.
+O cliente oficial tem licença MIT, ViGEmBus tem licença BSD-3-Clause e o .NET inclui sua licença MIT e avisos de terceiros. Os avisos e créditos exigidos estão em **ThirdParty/**. O instalador assinado do driver está sem modificações; o projeto original ViGEm está arquivado. O pacote cliente e o instalador são fixados por hash em `Bootstrap/Dependencies.json` e conferidos no empacotamento; a assinatura do driver é conferida novamente antes de abri-lo.
 
+`Build.ps1` compila uma versão de desenvolvimento usando o SDK .NET 8 instalado. `Package-Release.ps1` publica pacotes Windows x64 autocontidos PT-BR/EN, verifica versão/idioma e testes, inclui as dependências verificadas e gera ZIPs com `SHA256SUMS.txt` em `artifacts/`. Ele baixa de fontes oficiais quando o cache de build ignorado não existe. Nunca instala o driver nem publica uma release.

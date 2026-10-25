@@ -3,4 +3,5 @@ obj/
 *.user
 .tooling/
 pairing*.key
-
+artifacts/
+.bootstrap-cache/
