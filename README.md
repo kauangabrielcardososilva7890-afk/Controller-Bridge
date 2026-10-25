@@ -8,10 +8,20 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 
 ### Downloads
 
-- **Android app (APK):** [Download Controller Bridge for Android](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/latest/download/ControllerBridge-Android.apk)
-- **Windows host (ZIP with EXE):** [Download Controller Bridge for Windows 11 x64](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/latest/download/ControllerBridge-Windows-x64.zip)
+- **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-PT-BR-v0.3.0.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-EN-v0.3.0.apk)
+- **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Windows-PT-BR-v0.3.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Windows-EN-v0.3.0.zip)
 
-The Android app includes English and Portuguese; choose **EN** or **PT** in the app. The Windows host follows the system language or accepts `--lang en` / `--lang pt`.
+Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
+
+### How it works
+
+![Connection overview: Bluetooth controller to Android phone, then USB or Wi-Fi to a Windows PC](product/shared-assets/connection-modes.svg)
+
+The controller pairs with Android over Bluetooth. The phone forwards input to the Windows host over USB/ADB for the most direct connection, or over Wi-Fi on the same local network.
+
+![Each controller has its own profile and virtual output selection](product/shared-assets/profiles-and-outputs.svg)
+
+Each connected controller gets an independent profile. You can keep automatic mapping or customize buttons and axes, then choose Xbox 360 or DualShock 4 output for that controller.
 
 ### Requirements
 
@@ -49,7 +59,7 @@ Wi-Fi is convenient but can have more variable latency than USB, depending on th
 - Per-profile DS4 motion forwarding toggle when Android exposes compatible controller sensors.
 - USB/ADB and opt-in authenticated Wi-Fi transports.
 - Conditional DS4 RGB light control: the color picker appears only if Android exposes a controllable RGB light on that DS4. Android 12 or later is required for this public lights API.
-- Bilingual Android app and Windows host. This README has a complete English section followed by Portuguese.
+- Separate PT-BR and EN Android and Windows downloads. Each Android variant stays in its selected language.
 
 ### Current limits
 
@@ -76,10 +86,20 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 
 ### Downloads
 
-- **App Android (APK):** [Baixar Controller Bridge para Android](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/latest/download/ControllerBridge-Android.apk)
-- **Host Windows (ZIP com EXE):** [Baixar Controller Bridge para Windows 11 x64](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/latest/download/ControllerBridge-Windows-x64.zip)
+- **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-PT-BR-v0.3.0.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-EN-v0.3.0.apk)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Windows-PT-BR-v0.3.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Windows-EN-v0.3.0.zip)
 
-O app Android inclui português e inglês; escolha **PT** ou **EN** no app. O host Windows acompanha o idioma do sistema ou aceita `--lang pt` / `--lang en`.
+Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
+
+### Como funciona
+
+![Visão da conexão: controle Bluetooth ao celular Android e depois ao PC por USB ou Wi-Fi](product/shared-assets/connection-modes-pt.svg)
+
+O controle é pareado com o Android por Bluetooth. O celular encaminha os comandos ao host Windows por USB/ADB, para a conexão mais direta, ou por Wi-Fi na mesma rede local.
+
+![Cada controle tem seu próprio perfil e escolha de saída virtual](product/shared-assets/profiles-and-outputs-pt.svg)
+
+Cada controle conectado recebe um perfil independente. Você pode manter o mapeamento automático ou personalizar botões e eixos, e escolher a saída Xbox 360 ou DualShock 4 para cada controle.
 
 ### Requisitos
 
@@ -117,7 +137,7 @@ O Wi-Fi é prático, mas pode ter latência mais variável que o USB, dependendo
 - Opção por perfil para encaminhar o movimento do DS4 quando Android expõe sensores compatíveis.
 - Conexões USB/ADB e Wi-Fi autenticado opcional.
 - Controle condicional da luz RGB do DS4: o seletor de cor aparece somente se Android expuser uma luz RGB controlável nesse DS4. Essa API pública de luzes exige Android 12 ou superior.
-- App Android e host Windows em português e inglês. Este README tem uma seção completa em inglês e outra em português.
+- Downloads separados em português e inglês para Android e Windows. Cada variante Android fica fixa no idioma escolhido.
 
 ### Limites atuais
 
