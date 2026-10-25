@@ -1,4 +1,4 @@
-# Controller Bridge — Windows 0.3.1
+# Controller Bridge — Windows 0.3.2
 
 > **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
@@ -6,8 +6,9 @@
 
 ### Start in two main steps
 
-1. Download `ControllerBridge-Windows-EN-v0.3.1.zip` (or the PT-BR variant), extract the **whole ZIP**, connect your phone by a data USB cable, enable USB debugging and approve this PC on the phone.
-2. Open **Start-USB.cmd** (or `ControllerBridge.exe`) and keep the Android app open during play.
+1. Download `ControllerBridge-Windows-EN-v0.3.2.zip` (or the PT-BR variant) and extract the **whole ZIP**.
+2. For Wi-Fi, open **ControllerBridge.exe** or **Start-WiFi.cmd**. The visible host window stays open and shows `STATUS: ACTIVE`, the PC IP address, port, and pairing code to enter in the Android app.
+3. For USB, connect the phone by a data USB cable, enable USB debugging, approve this PC on the phone, and open **Start-USB.cmd**. USB mode does not use an IP address.
 
 The ZIP already includes a private .NET 8.0.32 runtime and the official client library. You do not need to install .NET or copy DLLs. Keep all extracted files and folders together.
 
@@ -45,8 +46,9 @@ The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes
 
 ### Iniciar em duas etapas principais
 
-1. Baixe `ControllerBridge-Windows-PT-BR-v0.3.1.zip` (ou a variante EN), extraia o **ZIP inteiro**, conecte o celular por cabo USB de dados, ative a depuração USB e autorize este PC na tela do celular.
-2. Abra **Iniciar-USB.cmd** (ou `ControllerBridge.exe`) e mantenha o app Android aberto durante o jogo.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.3.2.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
+2. Para Wi-Fi, abra **ControllerBridge.exe** ou **Iniciar-WiFi.cmd**. A janela visível do host fica aberta e mostra `STATUS: ATIVO`, o IP do PC, a porta e o código para informar no app Android.
+3. Para USB, conecte o celular por cabo USB de dados, ative a depuração USB, autorize este PC na tela do celular e abra **Iniciar-USB.cmd**. O modo USB não usa endereço IP.
 
 O ZIP já contém um runtime privado do .NET 8.0.32 e a biblioteca cliente oficial. Você não precisa instalar .NET nem copiar DLLs. Mantenha todos os arquivos e pastas extraídos juntos.
 

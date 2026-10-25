@@ -17,7 +17,8 @@ public static class Program
             if (args.Contains("--help")) { PrintHelp(english); return 0; }
             string Tr(string pt, string en) => english ? en : pt;
             var diagnostic = args.Contains("--diagnostic");
-            if (!args.Contains("--probe") && !args.Contains("--prepared") && !await Bootstrapper.PrepareAsync(args.Contains("--wifi"), diagnostic, english)) return 1;
+            var wifiMode = StartupMode.UseWifi(args);
+            if (!args.Contains("--probe") && !args.Contains("--prepared") && !await Bootstrapper.PrepareAsync(wifiMode, diagnostic, english)) return 1;
             var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(AppContext.BaseDirectory, "Nefarius.ViGEm.Client.dll");
             var profileDirectory = Argument(args, "--profiles") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "profiles");
             var port = int.Parse(Argument(args, "--port") ?? "47652");
@@ -42,7 +43,7 @@ public static class Program
                 return failed ? 1 : 0;
             }
             WifiListenerOptions? wifi = null;
-            if (args.Contains("--wifi"))
+            if (wifiMode)
             {
                 var wifiPort = int.Parse(Argument(args, "--wifi-port") ?? "47653");
                 if (wifiPort is < 1 or > 65535 || wifiPort == port) throw new ArgumentException(Tr("A porta Wi-Fi precisa ser válida e diferente da porta USB.", "Wi-Fi port must be valid and differ from the USB port."));
@@ -56,18 +57,22 @@ public static class Program
                 {
                     var addresses = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
                         .Where(adapter => adapter.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
-                        .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses)
-                        .Select(address => address.Address)
-                        .Where(address => address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(address))
-                        .Select(address => address.ToString()).Distinct().Order().ToArray();
-                    foreach (var address in addresses) Console.WriteLine(Tr($"IP local deste PC: {address}", $"This PC's LAN IPv4: {address}"));
+                        .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses
+                            .Where(address => address.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(address.Address))
+                            .Select(address => new { adapter.Name, adapter.NetworkInterfaceType, Address = address.Address.ToString() }))
+                        .DistinctBy(item => item.Address)
+                        .OrderBy(item => item.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211 ? 0 : item.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Ethernet ? 1 : 2)
+                        .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+                    foreach (var address in addresses) Console.WriteLine(Tr($"IP para conectar no celular ({address.Name}): {address.Address}", $"IP to enter on the phone ({address.Name}): {address.Address}"));
                     if (addresses.Length == 0) Console.WriteLine(Tr("Nenhum IP local ativo encontrado. Conecte o PC à mesma rede do celular.", "No active LAN IPv4 found. Connect this PC to the same network as the phone."));
                 }
                 catch (System.Net.NetworkInformation.NetworkInformationException)
                 { Console.WriteLine(Tr("Consulte o endereço IPv4 deste PC nas configurações de rede do Windows.", "Find this PC's IPv4 address in Windows network settings.")); }
+                Console.WriteLine(Tr($"USE NO CELULAR: modo Wi-Fi, um dos IPs acima, porta {wifiPort} e o código de pareamento.", $"ON THE PHONE: choose Wi-Fi, enter one of the IPs above, port {wifiPort}, and the pairing code."));
             }
-            Console.WriteLine(diagnostic ? Tr("Controller Bridge — diagnóstico (sem saída virtual).", "Controller Bridge — diagnostics (no virtual output).") : Tr("Controller Bridge — saída virtual ativa.", "Controller Bridge — virtual output active."));
-            Console.WriteLine(Tr("Mantenha o app Android aberto. Pressione Ctrl+C para encerrar.", "Keep the Android app open. Press Ctrl+C to exit."));
+            else Console.WriteLine(Tr("Conexão USB/ADB ativa em 127.0.0.1:47652; IP não é necessário no celular.", "USB/ADB is active on 127.0.0.1:47652; no IP is needed on the phone."));
+            Console.WriteLine(diagnostic ? Tr("STATUS: ATIVO — aguardando o celular (diagnóstico, sem saída virtual).", "STATUS: ACTIVE — waiting for the phone (diagnostics, no virtual output).") : Tr("STATUS: ATIVO — aguardando o app do celular.", "STATUS: ACTIVE — waiting for the phone app."));
+            Console.WriteLine(Tr("Esta janela precisa permanecer aberta. Pressione Ctrl+C para encerrar.", "Keep this window open. Press Ctrl+C to stop."));
             using var cancellation = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
             await new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english))).RunAsync(port, cancellation.Token, wifi);
@@ -101,7 +106,7 @@ public static class Program
     private static void PrintHelp(bool english)
     {
         Console.WriteLine(english
-            ? "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  --wifi       Also enable authenticated, encrypted Wi-Fi on port 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version.\nUSB/ADB stays on loopback. Wi-Fi is off unless --wifi is supplied."
-            : "ControllerBridge.exe [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  --wifi       Ativa também Wi-Fi autenticado e criptografado na porta 47653.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.\nUSB/ADB continua local. Wi-Fi fica desligado sem a opção --wifi.");
+            ? "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  Default: authenticated Wi-Fi on port 47653; shows IP addresses and pairing code.\n  --usb        Use USB/ADB Reverse on loopback port 47652 instead.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version."
+            : "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  Padrão: Wi-Fi autenticado na porta 47653; mostra IPs e código de pareamento.\n  --usb        Usa USB/ADB Reverse na porta local 47652.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.");
     }
 }

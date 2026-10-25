@@ -18,6 +18,7 @@ public static class SelfTests
             Directory.CreateDirectory(temporary);
             TestStateAndProjection();
             TestLanguageSelection();
+            TestStartupMode();
             TestMotionParsingAndReport();
             TestMotionProfilesAndSwitchRollback(Path.Combine(temporary, "motion-profiles"));
             TestSessionLifecycle(Path.Combine(temporary, "profiles"));
@@ -77,6 +78,15 @@ public static class SelfTests
         Check(HostLanguage.Resolve(null, "auto", brazil) == "pt", "Build padrão acompanha Windows português.");
         Check(HostLanguage.Resolve(null, "auto", english) == "en", "Build padrão acompanha Windows inglês.");
         Expect<ArgumentException>(() => HostLanguage.Resolve("invalid", "en", english), "Idioma inválido é recusado.");
+    }
+
+    private static void TestStartupMode()
+    {
+        Check(StartupMode.UseWifi([]), "Double-click startup must default to Wi-Fi and show a connectable PC address.");
+        Check(StartupMode.UseWifi(["--wifi", "--lang", "pt"]), "Explicit Wi-Fi mode must stay enabled.");
+        Check(!StartupMode.UseWifi(["--usb", "--lang", "pt"]), "USB launcher must select USB explicitly.");
+        Check(!StartupMode.UseWifi(["--diagnostic"]), "Diagnostics without a transport must keep USB loopback mode.");
+        Expect<ArgumentException>(() => StartupMode.UseWifi(["--usb", "--wifi"]), "Conflicting USB and Wi-Fi modes must be rejected.");
     }
 
     private static void TestMotionParsingAndReport()
@@ -400,4 +410,3 @@ public static class SelfTests
         public bool WaitForNewSlot(uint previousMask, TimeSpan timeout) => newSlot;
     }
 }
-

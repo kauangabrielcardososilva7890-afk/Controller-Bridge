@@ -9,7 +9,7 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 ### Downloads
 
 - **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-PT-BR-v0.3.0.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-EN-v0.3.0.apk)
-- **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.1/ControllerBridge-Windows-PT-BR-v0.3.1.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.1/ControllerBridge-Windows-EN-v0.3.1.zip)
+- **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.2/ControllerBridge-Windows-PT-BR-v0.3.2.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.2/ControllerBridge-Windows-EN-v0.3.2.zip)
 
 Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
 
@@ -26,7 +26,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Requirements
 
 - Android 8.0 or later with Bluetooth gamepad support.
-- Windows 11 x64. The Windows 0.3.1 ZIP includes its private .NET runtime and official client DLL.
+- Windows 11 x64. The Windows 0.3.2 ZIP includes its private .NET runtime and official client DLL.
 - The official signed ViGEmBus installer and required license notices are included. If the driver is missing, first start asks before opening its visible installer and Windows UAC; cancelling stops startup.
 - For USB: a data USB cable and Android USB debugging. Setup finds Android SDK Platform Tools (`adb`) automatically. If missing, it opens Google's official download page for your terms acceptance and asks where you extracted `adb.exe`; SDK tools are not bundled or downloaded silently.
 
@@ -34,7 +34,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 
 1. Download and install the Android APK.
 2. Pair the PS4, Xbox or another compatible Bluetooth controller with the phone in Android Bluetooth settings.
-3. Extract the entire Windows ZIP and open **Start-USB.cmd** or **Start-WiFi.cmd**. `ControllerBridge.exe` also prepares USB on first start. No separate .NET installation or DLL copying is needed; driver installation is visible and requires your approval.
+3. Extract the entire Windows ZIP. Open **ControllerBridge.exe** or **Start-WiFi.cmd** for Wi-Fi; the host window stays open and shows ACTIVE status, PC IP, port and pairing code. Open **Start-USB.cmd** for USB/ADB. No separate .NET installation or DLL copying is needed; driver installation is visible and requires your approval.
 4. Open Android, select each controller and its **Xbox 360** or **DualShock 4** PC output, and tap **Connect to PC**.
 
 ### Connect by USB
@@ -49,7 +49,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 2. The host window shows the PC's active IPv4 addresses and a 32-character pairing code. In the Android app, choose **Wi-Fi**, enter the PC's local IP and the code, then connect. The host listens on port `47653`; USB remains available on `47652`.
 3. If Windows Firewall asks, allow the app on **private networks only**. The host does not add firewall rules automatically. Keep the pairing code private; Android saves it encrypted in Android Keystore for that PC.
 
-Wi-Fi is convenient but can have more variable latency than USB, depending on the network. The Wi-Fi messages are mutually authenticated and encrypted. The host only opens its Wi-Fi listener when `--wifi` is supplied. To reset pairing, close the host and delete `%LOCALAPPDATA%\ControllerBridge\pairing.key`, then start it again with `--wifi` and enter the new code in Android.
+Wi-Fi is convenient but can have more variable latency than USB, depending on the network. The Wi-Fi messages are mutually authenticated and encrypted. The host opens its Wi-Fi listener by default; `--usb` selects USB/ADB instead. To reset pairing, close the host and delete `%LOCALAPPDATA%\ControllerBridge\pairing.key`, then start it again with `--wifi` and enter the new code in Android.
 
 ### Features
 
@@ -87,7 +87,7 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 ### Downloads
 
 - **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-PT-BR-v0.3.0.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.0/ControllerBridge-Android-EN-v0.3.0.apk)
-- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.1/ControllerBridge-Windows-PT-BR-v0.3.1.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.1/ControllerBridge-Windows-EN-v0.3.1.zip)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.2/ControllerBridge-Windows-PT-BR-v0.3.2.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.3.2/ControllerBridge-Windows-EN-v0.3.2.zip)
 
 Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
 
@@ -104,7 +104,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Requisitos
 
 - Android 8.0 ou superior com suporte a controles Bluetooth.
-- Windows 11 x64. O ZIP Windows 0.3.1 inclui seu runtime privado do .NET e a DLL cliente oficial.
+- Windows 11 x64. O ZIP Windows 0.3.2 inclui seu runtime privado do .NET e a DLL cliente oficial.
 - O instalador oficial assinado do ViGEmBus e os avisos de licença exigidos estão incluídos. Se faltar o driver, a primeira abertura pergunta antes de mostrar seu instalador e o UAC do Windows; cancelar interrompe a abertura.
 - Para USB: cabo de dados e depuração USB do Android. A preparação localiza Android SDK Platform Tools (`adb`) automaticamente. Se faltar, ela abre a página oficial da Google para seu aceite dos termos e pede onde você extraiu `adb.exe`; as ferramentas SDK não são incluídas nem baixadas silenciosamente.
 
@@ -112,7 +112,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 
 1. Baixe e instale o APK Android.
 2. Pareie o controle de PS4, Xbox ou outro controle Bluetooth compatível com o celular pelas configurações Bluetooth do Android.
-3. Extraia o ZIP Windows inteiro e abra **Iniciar-USB.cmd** ou **Iniciar-WiFi.cmd**. `ControllerBridge.exe` também prepara USB na primeira abertura. Não precisa instalar .NET nem copiar DLLs; a instalação do driver é visível e depende da sua confirmação.
+3. Extraia o ZIP Windows inteiro. Abra **ControllerBridge.exe** ou **Iniciar-WiFi.cmd** para Wi-Fi; a janela do host fica aberta e mostra STATUS ATIVO, IP do PC, porta e código de pareamento. Abra **Iniciar-USB.cmd** para USB/ADB. Não precisa instalar .NET nem copiar DLLs; a instalação do driver é visível e depende da sua confirmação.
 4. Abra Android, selecione cada controle, escolha a saída **Xbox 360** ou **DualShock 4** para o PC e toque em **Conectar ao PC**.
 
 ### Conectar por USB
@@ -127,7 +127,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 2. A janela do host mostra os endereços IPv4 ativos do PC e um código de pareamento de 32 caracteres. No app Android, escolha **Wi-Fi**, informe o IP local do PC e o código, e conecte. O host usa a porta `47653`; USB continua disponível na porta `47652`.
 3. Se o Firewall do Windows perguntar, permita o programa **somente em redes privadas**. O host não cria regras de firewall automaticamente. Mantenha o código privado; o Android o salva cifrado no Android Keystore para esse PC.
 
-O Wi-Fi é prático, mas pode ter latência mais variável que o USB, dependendo da rede. As mensagens Wi-Fi são autenticadas nos dois sentidos e criptografadas. O host só abre a conexão Wi-Fi quando iniciado com `--wifi`. Para refazer o pareamento, feche o host, apague `%LOCALAPPDATA%\ControllerBridge\pairing.key`, inicie-o novamente com `--wifi` e informe o novo código no Android.
+O Wi-Fi é prático, mas pode ter latência mais variável que o USB, dependendo da rede. As mensagens Wi-Fi são autenticadas nos dois sentidos e criptografadas. O host abre Wi-Fi por padrão; `--usb` seleciona USB/ADB. Para refazer o pareamento, feche o host, apague `%LOCALAPPDATA%\ControllerBridge\pairing.key`, inicie-o novamente com `--wifi` e informe o novo código no Android.
 
 ### Recursos
 
