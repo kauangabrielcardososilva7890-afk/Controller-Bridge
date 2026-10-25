@@ -28,7 +28,7 @@ The app includes English and Portuguese. Choose **EN** or **PT** at the top of t
 
 1. Download the APK above, open it on Android and allow installation when asked.
 2. Pair the PS4, Xbox, or other compatible controller with the phone using Android Bluetooth settings.
-3. Download and extract the Windows ZIP. Install the ViGEmBus driver, then place `Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`.
+3. Download and extract the Windows ZIP. Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP archive, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`.
 4. On Android, enable **Developer options** and **USB debugging**. Connect the unlocked phone to the PC and approve the computer's debugging prompt.
 5. Open PowerShell on Windows and run `adb reverse tcp:47652 tcp:47652`. If `adb` is not recognized, run it using its full path inside Android SDK `platform-tools`.
 6. Start `ControllerBridge.exe` and keep its window open.
@@ -50,6 +50,7 @@ The app includes English and Portuguese. Choose **EN** or **PT** at the top of t
 - The Windows host runs in a terminal window.
 - Xbox virtual devices use Windows XInput slots, shared with physical Xbox-compatible devices.
 - Battery, rumble, PS5 output, OTG and hiding physical PC controllers are not supported.
+- ViGEmBus is an external dependency whose upstream repository is archived; check its official release page before installing.
 
 ### Build from source
 
@@ -79,7 +80,7 @@ O app inclui português e inglês. Escolha **PT** ou **EN** no topo da tela. O h
 
 1. Baixe o APK acima, abra-o no Android e permita a instalação quando solicitado.
 2. Pareie o controle de PS4, Xbox ou outro controle compatível com o celular pelas configurações Bluetooth do Android.
-3. Baixe e extraia o ZIP do Windows. Instale o driver ViGEmBus e coloque `Nefarius.ViGEm.Client.dll` ao lado de `ControllerBridge.exe`.
+3. Baixe e extraia o ZIP do Windows. Instale o [driver oficial ViGEmBus](https://github.com/nefarius/ViGEmBus/releases). Baixe o [pacote NuGet Nefarius.ViGEm.Client](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), abra o arquivo `.nupkg` como ZIP e copie `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` para junto de `ControllerBridge.exe`.
 4. No Android, ative **Opções do desenvolvedor** e **Depuração USB**. Conecte o celular desbloqueado ao PC e autorize a solicitação de depuração.
 5. Abra o PowerShell no Windows e execute `adb reverse tcp:47652 tcp:47652`. Se o comando `adb` não for reconhecido, execute-o pelo caminho completo dentro de `platform-tools` do Android SDK.
 6. Inicie `ControllerBridge.exe` e mantenha a janela aberta.
@@ -101,9 +102,11 @@ O app inclui português e inglês. Escolha **PT** ou **EN** no topo da tela. O h
 - O host do Windows funciona em uma janela de terminal.
 - Controles virtuais Xbox usam as posições XInput do Windows, compartilhadas com controles físicos compatíveis.
 - Bateria, vibração, saída PS5, OTG e ocultação de controles físicos do PC não são suportados.
+- ViGEmBus é uma dependência externa e o repositório original está arquivado; confira a página oficial de versões antes de instalar.
 
 ### Compilar do código-fonte
 
 - Android: instale o Android Studio com Android SDK e Java 21 e execute `product/android-app/Build.ps1`.
 - Host Windows: instale o .NET 8 SDK e execute `product/windows-host/Build.ps1`.
 - O driver virtual do Windows e sua biblioteca cliente são dependências separadas e não vêm incluídos.
+
