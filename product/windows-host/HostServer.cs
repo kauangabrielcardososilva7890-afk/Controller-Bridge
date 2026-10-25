@@ -7,16 +7,30 @@ using System.Collections.Concurrent;
 
 namespace ControllerBridge.Host;
 
-public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action<string> log)
+public sealed record MotionProviderStatus(bool Requested, bool Running, string? Error, IPEndPoint? Endpoint);
+
+public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action<string> log) : IDisposable
 {
     private readonly SemaphoreSlim _clientSlots = new(16);
     private readonly ConcurrentDictionary<string, ControllerSession> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ControllerSnapshot> _latestControllers = new(StringComparer.Ordinal);
+    private readonly object _motionGate = new();
+    private DsuMotionServer? _motionServer;
+    private string? _motionServerError;
+    private string? _lastLoggedMotionError;
+    private DateTimeOffset _lastMotionServerAttempt = DateTimeOffset.MinValue;
+    private bool _motionProviderRequested;
     private int _phoneConnections;
     public event Action<ControllerSnapshot>? ControllerChanged;
     public event Action<int>? PhoneConnectionCountChanged;
 
     public int PhoneConnectionCount => Volatile.Read(ref _phoneConnections);
     public IReadOnlyList<ControllerSnapshot> GetControllers() => _sessions.Values.SelectMany(session => session.GetSnapshots()).ToArray();
+    public MotionProviderStatus GetMotionProviderStatus()
+    {
+        lock (_motionGate)
+            return new(_motionProviderRequested, _motionServer?.IsRunning == true, _motionServerError, _motionServer?.BoundEndPoint);
+    }
 
     public void SetControllerOutput(ControllerSnapshot controller, string output, bool gyroEnabled)
     {
@@ -118,7 +132,7 @@ public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action
                 { log($"Não foi possível enviar atualização ao celular: {error.GetBaseException().Message}"); }
             }
             _sessions[session.SessionId] = session;
-            session.ControllerChanged += snapshot => ControllerChanged?.Invoke(snapshot);
+            session.ControllerChanged += OnControllerChanged;
             session.HostMessageRequested += message => _ = SendExternalAsync(message);
             var currentConnections = Interlocked.Increment(ref _phoneConnections);
             PhoneConnectionCountChanged?.Invoke(currentConnections);
@@ -167,8 +181,77 @@ public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action
             }
             log("Celular desconectado; controles liberados.");
             _sessions.TryRemove(session.SessionId, out _);
+            RemoveSessionControllers(session.SessionId);
             currentConnections = Interlocked.Decrement(ref _phoneConnections);
             PhoneConnectionCountChanged?.Invoke(currentConnections);
+        }
+    }
+
+    private void OnControllerChanged(ControllerSnapshot snapshot)
+    {
+        var key = snapshot.SessionId + "/" + snapshot.ControllerId;
+        if (snapshot.Connected) _latestControllers[key] = snapshot;
+        else _latestControllers.TryRemove(key, out _);
+        UpdateMotionProvider();
+        ControllerChanged?.Invoke(snapshot);
+    }
+
+    private void RemoveSessionControllers(string sessionId)
+    {
+        var prefix = sessionId + "/";
+        foreach (var key in _latestControllers.Keys)
+            if (key.StartsWith(prefix, StringComparison.Ordinal)) _latestControllers.TryRemove(key, out _);
+        UpdateMotionProvider();
+    }
+
+    private void UpdateMotionProvider()
+    {
+        var snapshots = _latestControllers.Values.ToArray();
+        var requested = snapshots.Any(snapshot => snapshot.Connected && snapshot.Output == "ds4" && snapshot.GyroEnabled);
+        lock (_motionGate)
+        {
+            _motionProviderRequested = requested;
+            if (!requested)
+            {
+                _motionServer?.Dispose();
+                _motionServer = null;
+                _motionServerError = null;
+                _lastLoggedMotionError = null;
+                return;
+            }
+
+            if (_motionServer == null && DateTimeOffset.UtcNow - _lastMotionServerAttempt >= TimeSpan.FromSeconds(5))
+            {
+                _lastMotionServerAttempt = DateTimeOffset.UtcNow;
+                if (DsuMotionServer.TryStart(out var server, out var error))
+                {
+                    _motionServer = server;
+                    _motionServerError = null;
+                    _lastLoggedMotionError = null;
+                    log($"Servidor local de movimento ativo em 127.0.0.1:{DsuMotionServer.DefaultPort}.");
+                }
+                else
+                {
+                    _motionServerError = error;
+                    if (_lastLoggedMotionError != error)
+                    {
+                        log($"Servidor local de movimento indisponível: {error}");
+                        _lastLoggedMotionError = error;
+                    }
+                }
+            }
+
+            _motionServer?.Publish(snapshots);
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_motionGate)
+        {
+            _motionServer?.Dispose();
+            _motionServer = null;
+            _motionProviderRequested = false;
         }
     }
 }

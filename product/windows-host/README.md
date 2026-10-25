@@ -1,4 +1,4 @@
-# Controller Bridge — Windows 0.4.0
+# Controller Bridge — Windows 0.5.0
 
 > **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
@@ -6,7 +6,7 @@
 
 ### Start in two main steps
 
-1. Download `ControllerBridge-Windows-EN-v0.4.0.zip` (or the PT-BR variant) and extract the **whole ZIP**.
+1. Download `ControllerBridge-Windows-EN-v0.5.0.zip` (or the PT-BR variant) and extract the **whole ZIP**.
 2. Open **ControllerBridge.exe**. It starts the Wi-Fi host automatically and opens the desktop dashboard. Connect the phone and PC to the same local network.
 3. Enter the PC IP, port **47653**, and pairing code shown in the dashboard into the Android app. Minimize the dashboard to keep the host running in the background; type `stop` or `parar` in the console, or close the dashboard, to stop it.
 
@@ -28,7 +28,7 @@ Pairing uses mutual authentication and authenticated encryption. The host rememb
 
 - Each phone-connected controller has a separate profile and Xbox 360 or DS4 output; native PC controllers remain native. Xbox outputs share Windows' four XInput positions.
 - The PC dashboard shows live button activity, lets you select the virtual output per controller, and lets you click a diagram button to remap it by pressing the physical control on Android.
-- The DS4 gyro can be toggled in the PC dashboard when DS4 output is selected. Axis calibration and exposed RGB lights remain managed in Android.
+- The DS4 gyro can be toggled in the PC dashboard when DS4 output is selected. Its sensor data is also served locally over DSU/Cemuhook UDP at `127.0.0.1:26760` for compatible emulator motion providers. If the port is occupied, close the other motion provider; virtual DS4 input remains available. Axis calibration and exposed RGB lights remain managed in Android.
 - PT-BR and EN packages have their own initial language. `--lang pt` or `--lang en` overrides it. `--version` prints the version; `--help` lists options.
 - `--diagnostic` receives input without creating virtual outputs. `--prepared` skips package preparation for advanced/manual setups.
 - Profiles are saved under `%LOCALAPPDATA%\ControllerBridge\profiles`.
@@ -47,7 +47,7 @@ The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes
 
 ### Iniciar em duas etapas principais
 
-1. Baixe `ControllerBridge-Windows-PT-BR-v0.4.0.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.5.0.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
 2. Abra **ControllerBridge.exe**. O host Wi-Fi inicia automaticamente e abre o painel do PC. Conecte o celular e o PC à mesma rede local.
 3. Informe no app Android o IP, a porta **47653** e o código de pareamento mostrados no painel. Minimize o painel para deixar o host em segundo plano; digite `stop` ou `parar` no console, ou feche o painel, para encerrar.
 
@@ -69,7 +69,7 @@ O pareamento usa autenticação mútua e criptografia autenticada. O host guarda
 
 - Cada controle conectado ao celular tem perfil separado e saída Xbox 360 ou DS4; controles nativos do PC continuam nativos. Saídas Xbox compartilham as quatro posições XInput do Windows.
 - O painel do PC destaca os botões em tempo real, permite escolher a saída virtual de cada controle e iniciar o remapeamento clicando no botão desenhado e pressionando o controle físico no Android.
-- O giroscópio DS4 pode ser ligado/desligado no painel quando a saída DS4 está selecionada. Calibração de eixos e luz RGB exposta continuam no Android.
+- O giroscópio DS4 pode ser ligado/desligado no painel quando a saída DS4 está selecionada. Os dados do sensor também são servidos localmente por DSU/Cemuhook UDP em `127.0.0.1:26760` para provedores de movimento compatíveis com emuladores. Se a porta estiver ocupada, feche o outro provedor de movimento; a entrada virtual DS4 continua disponível. Calibração de eixos e luz RGB exposta continuam no Android.
 - Os pacotes PT-BR e EN têm seu próprio idioma inicial. `--lang pt` ou `--lang en` altera essa escolha. `--version` mostra a versão; `--help` lista opções.
 - `--diagnostic` recebe comandos sem criar controles virtuais. `--prepared` pula a preparação do pacote para configurações avançadas/manuais.
 - Os perfis ficam em `%LOCALAPPDATA%\ControllerBridge\profiles`.

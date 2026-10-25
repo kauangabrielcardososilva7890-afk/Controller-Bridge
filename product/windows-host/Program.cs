@@ -82,7 +82,7 @@ public static class Program
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
             Console.WriteLine(Tr("O painel Controller Bridge será aberto. Digite stop ou parar aqui para encerrar.", "The Controller Bridge dashboard will open. Type stop or parar here to stop."));
             Console.Write("> ");
-            var host = new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english)));
+            using var host = new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english)));
             var serverTask = host.RunAsync(port, cancellation.Token, wifi);
             ApplicationConfiguration.Initialize();
             using var dashboard = new DashboardForm(english, host, localIps, wifiMode, wifi?.Port ?? 47653,
@@ -140,6 +140,8 @@ public static class Program
         if (message.StartsWith("Ouvindo Wi-Fi autenticado em ", StringComparison.Ordinal)) return message.Replace("Ouvindo Wi-Fi autenticado em ", "Listening for authenticated Wi-Fi on ");
         if (message == "Autenticação Wi-Fi recusada; conexão fechada.") return "Wi-Fi authentication rejected; connection closed.";
         if (message == "Autenticação Wi-Fi concluída.") return "Wi-Fi authentication completed.";
+        if (message.StartsWith("Servidor local de movimento ativo em ", StringComparison.Ordinal)) return message.Replace("Servidor local de movimento ativo em ", "Local motion server listening on ");
+        if (message.StartsWith("Servidor local de movimento indisponível: ", StringComparison.Ordinal)) return message.Replace("Servidor local de movimento indisponível: ", "Local motion server unavailable: ");
         return message;
     }
     private static void PrintHelp(bool english)

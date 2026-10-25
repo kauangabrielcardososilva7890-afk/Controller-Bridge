@@ -345,7 +345,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         gyroToggle.setOnCheckedChangeListener((button,checked)->{
             if(refreshingUi)return;
             Controller current=selected(); if(current==null)return;
-            if(!current.output.equals("ds4") || findMotionPair(current)==null) { renderControllerDetails(); return; }
+            if(!current.output.equals("ds4") || (checked && findMotionPair(current)==null)) { renderControllerDetails(); return; }
             current.gyroEnabled=checked;
             refreshMotionSubscriptions(); persistAndSendProfile(current); renderControllerDetails();
         });
@@ -553,7 +553,11 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         sendNeutralAndDetach(controller);
         stopMotionSubscription(controller);
         closeLightbarSession(controller);
-        if (controller.id().equals(selectedControllerId)) selectedControllerId = controllers.isEmpty() ? null : controllers.values().iterator().next().id();
+        if (controller.id().equals(selectedControllerId)) {
+            selectedControllerId = controllers.isEmpty() ? null : controllers.values().iterator().next().id();
+            pendingButton = null; pendingAxis = null;
+            if (helpText != null) helpText.setText(tr("Selecione um controle e toque em Mapear para configurar.","Select a controller and tap Map to configure it."));
+        }
         renderControllerList();
         renderControllerDetails();
     }
@@ -690,7 +694,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         }
         boolean shouldListen=resumed && inputFocused && bridge!=null && sessionReady && controller.attached
                 && controller.profileReady && controller.output.equals("ds4") && controller.gyroEnabled && pair!=null;
-        if(!shouldListen || controller.motionRegistered) return;
+        if(!shouldListen) { stopMotionSubscription(controller); return; }
+        if(controller.motionRegistered) return;
         if(controller.motionCapture==null) controller.motionCapture=new MotionCapture(controller);
         boolean gyroOk=false, accelOk=false;
         try {
@@ -712,6 +717,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if(controller.motionRegistered && controller.motionManager!=null && controller.motionCapture!=null)
             controller.motionManager.unregisterListener(controller.motionCapture);
         controller.motionRegistered=false;
+        controller.gyroSampleReceived=false;
+        controller.motionTimestampNs=0;
     }
 
     private void stopAllMotionSubscriptions() { for(Controller controller:controllers.values()) stopMotionSubscription(controller); }
@@ -896,25 +903,25 @@ public final class MainActivity extends Activity implements InputManager.InputDe
                 if (hostIsEmpty) persistAndSendProfile(controller);
             }
             refreshMotionSubscriptions();
+            renderControllerList();
             renderControllerDetails();
             sendState(controller);
         } else if ("profile_saved".equals(type) && controller != null) {
             if (!controller.profileId.equals(message.optString("profile_id", ""))) return;
-            controller.revision = Math.max(controller.revision, message.optInt("revision", controller.revision));
-            int ackRevision = message.optInt("revision", controller.revision);
+            int ackRevision = message.optInt("revision", -1);
+            if (!controller.pendingProfileSave || ackRevision != controller.pendingRevision) return;
             controller.revision = Math.max(controller.revision, ackRevision);
             controller.pendingProfileSave = false;
             String currentJson = controller.output + ":" + controller.gyroEnabled + ":" + encodeMapping(controller.mapping);
-            if (controller.pendingProfileJson != null && !controller.pendingProfileJson.equals(currentJson)) {
-                controller.pendingProfileJson = null;
+            boolean editedAgain = controller.pendingProfileJson != null && !controller.pendingProfileJson.equals(currentJson);
+            clearPendingProfile(controller);
+            // Resolve desktop changes before sending another queued phone edit at the same revision.
+            if (!applyDeferredHostProfile(controller, ackRevision)) {
                 profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
-                persistAndSendProfile(controller);
-            } else {
-                controller.pendingProfileJson = null;
-                profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
+                if (editedAgain) persistAndSendProfile(controller);
             }
-            applyDeferredHostProfile(controller, ackRevision);
             connectionStatus.setText(tr("Perfil salvo no PC · revisão ","Profile saved on PC · revision ") + controller.revision);
+            renderControllerList();
             renderControllerDetails();
         } else if ("pong".equals(type)) {
             long sequence = message.optLong("seq", -1);
@@ -925,8 +932,26 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             }
         } else if ("error".equals(type)) {
             connectionStatus.setText(displayHostError(message));
-            if (controller != null) { reconcilePendingProfile(controller);
-                if (message.optString("code", "").equals("output_unavailable")) controller.profileReady = false; }
+            if (controller != null) {
+                JSONObject accepted = message.optJSONObject("profile");
+                if ("stale_revision".equals(message.optString("code", "")) && accepted != null
+                        && controller.profileId.equals(accepted.optString("profile_id", ""))
+                        && controller.id().equals(accepted.optString("controller_id", ""))
+                        && accepted.optInt("revision", -1) > controller.revision) {
+                    JSONObject deferred = controller.deferredHostProfile;
+                    if (deferred != null && deferred.optInt("revision", -1) > accepted.optInt("revision", -1)) accepted = deferred;
+                    clearPendingProfile(controller);
+                    controller.deferredHostProfile = null;
+                    applyHostProfile(controller, accepted, accepted.optInt("revision", -1));
+                } else {
+                    clearPendingProfile(controller);
+                    applyDeferredHostProfile(controller, controller.revision);
+                    if (message.optString("code", "").equals("output_unavailable")) controller.profileReady = false;
+                }
+                refreshMotionSubscriptions();
+                renderControllerList();
+                renderControllerDetails();
+            }
         }
     }
 
@@ -936,8 +961,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         int hostRevision = message.optInt("revision", -1);
         if (hostRevision < 1) return;
 
-        // A phone edit already sent to the host wins until its acknowledgement arrives.
-        // Keep the newest desktop snapshot and resolve it against the acknowledged revision.
+        // Keep the newest desktop snapshot until the outstanding phone edit is accepted or rejected.
         if (controller.pendingProfileSave) {
             JSONObject deferred = controller.deferredHostProfile;
             if (deferred == null || hostRevision > deferred.optInt("revision", -1))
@@ -947,14 +971,15 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         applyHostProfile(controller, message, hostRevision);
     }
 
-    private void applyDeferredHostProfile(Controller controller, int acknowledgedRevision) {
-        if (controller.pendingProfileSave) return;
+    private boolean applyDeferredHostProfile(Controller controller, int acknowledgedRevision) {
+        if (controller.pendingProfileSave) return false;
         JSONObject deferred = controller.deferredHostProfile;
         controller.deferredHostProfile = null;
-        if (deferred == null) return;
+        if (deferred == null) return false;
         int deferredRevision = deferred.optInt("revision", -1);
-        if (deferredRevision <= Math.max(acknowledgedRevision, controller.revision)) return;
+        if (deferredRevision <= Math.max(acknowledgedRevision, controller.revision)) return false;
         applyHostProfile(controller, deferred, deferredRevision);
+        return true;
     }
 
     private void applyHostProfile(Controller controller, JSONObject message, int hostRevision) {
@@ -980,15 +1005,16 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if (bridge != source) return;
         if(pendingPairingWasStored && pendingPairingHost!=null && "Falha de autenticação Wi-Fi.".equals(reason)) wifiPairings.remove(pendingPairingHost);
         clearPendingPairing();
-        reconcilePendingProfiles();
         bridge = null;
         sessionReady = false;
+        reconcilePendingProfiles();
         connectedOverWifi=false;
         for (Controller controller : controllers.values()) { controller.attached = false; controller.profileReady = false; clearInput(controller, false); }
         refreshMotionSubscriptions();
         connectionStatus.setText(tr("Desconectado: ","Disconnected: ") + displayReason(reason));
         connectionButton.setText(tr("Conectar","Connect"));
         updateTransportUi();
+        renderControllerList();
         renderControllerDetails();
     }
 
@@ -1063,6 +1089,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private void persistAndSendProfile(Controller controller) {
         JSONObject mapping = encodeMapping(controller.mapping);
         profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, mapping);
+        renderControllerList();
         if (bridge == null || !sessionReady || !controller.attached || !controller.profileReady || controller.pendingProfileSave) {
             renderControllerDetails();
             return;
@@ -1102,14 +1129,24 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
     private void reconcilePendingProfile(Controller controller) {
+        JSONObject deferred = controller.deferredHostProfile;
+        if (deferred != null && deferred.optInt("revision", -1) > controller.revision) {
+            clearPendingProfile(controller);
+            applyDeferredHostProfile(controller, controller.revision);
+            return;
+        }
         if (controller.pendingProfileSave) {
             controller.revision = Math.max(controller.revision, controller.pendingRevision);
             profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
         }
+        clearPendingProfile(controller);
+        controller.deferredHostProfile = null;
+    }
+
+    private void clearPendingProfile(Controller controller) {
         controller.pendingProfileSave = false;
         controller.pendingProfileJson = null;
         controller.pendingRevision = 0;
-        controller.deferredHostProfile = null;
     }
 
     private void disconnectGracefully(String status) {
@@ -1126,6 +1163,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         connectionButton.setText(tr("Conectar","Connect"));
         old.closeAfterFlush();
         updateTransportUi();
+        renderControllerList();
         renderControllerDetails();
     }
 
@@ -1197,7 +1235,13 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             selectedTag.setTextColor(selected?0xff8bb7ff:0xff8292a4); selectedTag.setGravity(Gravity.CENTER);
             item.addView(selectedTag,new LinearLayout.LayoutParams(selected?dp(68):dp(26),LinearLayout.LayoutParams.WRAP_CONTENT));
             item.setContentDescription(controller.displayName()+ (selected?tr(", selecionado para configurar",", selected for setup"):""));
-            item.setOnClickListener(v->{selectedControllerId=controller.id();renderControllerList();renderControllerDetails();});
+            item.setOnClickListener(v->{
+                if(!controller.id().equals(selectedControllerId)) {
+                    pendingButton=null; pendingAxis=null;
+                    helpText.setText(tr("Toque em Mapear para configurar este controle.","Tap Map to configure this controller."));
+                }
+                selectedControllerId=controller.id();renderControllerList();renderControllerDetails();updatePendingInstruction();
+            });
             controllerList.addView(item,itemParams);
         }
     }
@@ -1235,7 +1279,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if(controller!=null) updateMotionSubscription(controller,motionPair);
         if(gyroToggle!=null) {
             boolean ds4=controller!=null && controller.output.equals("ds4");
-            boolean available=ds4 && motionPair!=null;
+            boolean available=ds4 && (motionPair!=null || controller.gyroEnabled);
             gyroToggle.setEnabled(available);
             gyroToggle.setChecked(ds4 && controller.gyroEnabled);
         }

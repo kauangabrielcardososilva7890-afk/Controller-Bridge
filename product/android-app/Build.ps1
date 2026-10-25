@@ -1,10 +1,10 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$androidSdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+$androidSdk = if ($env:CONTROLLER_BRIDGE_ANDROID_SDK) { [IO.Path]::GetFullPath($env:CONTROLLER_BRIDGE_ANDROID_SDK) } else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 $aapt2 = Join-Path $androidSdk 'build-tools\34.0.0\aapt2.exe'
 $androidUserHome = Join-Path $projectRoot '.android-user'
 $androidJava = 'C:\Program Files\Android\Android Studio\jbr'
-$gradleUserHome = Join-Path $env:USERPROFILE '.gradle'
+$gradleUserHome = if ($env:CONTROLLER_BRIDGE_GRADLE_USER_HOME) { [IO.Path]::GetFullPath($env:CONTROLLER_BRIDGE_GRADLE_USER_HOME) } else { Join-Path $env:USERPROFILE '.gradle' }
 $gradleCache = Join-Path $gradleUserHome 'wrapper\dists\gradle-8.2.1-all'
 $gradleBat = Get-ChildItem -LiteralPath $gradleCache -Recurse -Filter 'gradle.bat' -ErrorAction Stop | Select-Object -First 1 -ExpandProperty FullName
 $javaExe = Join-Path $androidJava 'bin\java.exe'
@@ -59,8 +59,8 @@ try {
     if ($enApk.Count -ne 1) { throw "Esperado exatamente um APK EN; encontrados $($enApk.Count)." }
     $dist = Join-Path $projectRoot 'dist'
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.4.0.apk'
-    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.4.0.apk'
+    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.5.0.apk'
+    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.5.0.apk'
     Copy-Item -LiteralPath $ptApk[0].FullName -Destination $ptDeliverable -Force
     Copy-Item -LiteralPath $enApk[0].FullName -Destination $enDeliverable -Force
     $oldGeneric = Join-Path $dist 'ControllerBridge-android.apk'

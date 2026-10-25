@@ -12,7 +12,7 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
     {
         lock (_gate)
             return _controllers.Select(pair => new ControllerSnapshot(SessionId, pair.Key, pair.Value.Name,
-                pair.Value.Profile.Output, pair.Value.Profile.GyroEnabled, pair.Value.Profile.Revision, true, pair.Value.State)).ToArray();
+                pair.Value.Profile.Output, pair.Value.Profile.GyroEnabled, pair.Value.Profile.Revision, true, pair.Value.State, pair.Value.Profile.Mapping)).ToArray();
     }
     private readonly Dictionary<string, Entry> _controllers = new();
     private readonly object _gate = new();
@@ -72,6 +72,11 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
                 if (controllerId != null && _controllers.TryGetValue(controllerId, out var entry)) SafeNeutralize(entry);
                 else NeutralizeAll();
                 var code = error is ProtocolException protocol ? protocol.Code : "invalid_json";
+                // A dashboard edit may have advanced the revision while a phone edit was in flight.
+                // Return the accepted profile with the conflict so the phone can leave its pending state.
+                if (code == "stale_revision" && controllerId != null && _controllers.TryGetValue(controllerId, out var current))
+                    return new { v = 1, type = "error", controller_id = controllerId, code, message = error.Message,
+                        profile = ProfileMessage(controllerId, current.ProfileId, current.Profile) };
                 return new { v = 1, type = "error", controller_id = controllerId, code, message = error.Message };
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or TargetInvocationException)
@@ -175,12 +180,7 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
             if (replacement != null)
                 try { former.Dispose(); } catch (Exception error) { log($"Falha ao liberar saída anterior: {error.GetBaseException().Message}"); }
             Publish(id, entry, true);
-            HostMessageRequested?.Invoke(new
-            {
-                v = 1, type = "profile", controller_id = id, profile_id = entry.ProfileId,
-                revision = profile.Revision, output = profile.Output, gyro_enabled = profile.GyroEnabled,
-                mapping = profile.Mapping
-            });
+            HostMessageRequested?.Invoke(ProfileMessage(id, entry.ProfileId, profile));
         }
     }
 
@@ -206,7 +206,7 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         return null;
     }
     private static object ProfileMessage(string id, string profileId, ControllerProfile profile) => new { v = 1, type = "profile", controller_id = id, profile_id = profileId, revision = profile.Revision, output = profile.Output, gyro_enabled = profile.GyroEnabled, mapping = profile.Mapping };
-    private void Publish(string id, Entry entry, bool connected) => ControllerChanged?.Invoke(new(SessionId, id, entry.Name, entry.Profile.Output, entry.Profile.GyroEnabled, entry.Profile.Revision, connected, connected ? entry.State : GamepadState.Neutral()));
+    private void Publish(string id, Entry entry, bool connected) => ControllerChanged?.Invoke(new(SessionId, id, entry.Name, entry.Profile.Output, entry.Profile.GyroEnabled, entry.Profile.Revision, connected, connected ? entry.State : GamepadState.Neutral(), entry.Profile.Mapping));
     private void SafeNeutralize(Entry entry)
     {
         try { entry.Output.Neutralize(); } catch (Exception error) { log($"Falha ao neutralizar controle: {error.GetBaseException().Message}"); }

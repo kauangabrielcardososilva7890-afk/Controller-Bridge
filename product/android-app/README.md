@@ -16,11 +16,15 @@ Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`;
 4. Tap **Connect to PC** and keep the app screen open while playing. Choose Xbox 360 or DualShock 4 output in either the phone app or Windows dashboard. On Windows, click a button on the controller diagram to choose it for remapping, then press the replacement physical button on the controller connected to the phone.
 5. The two app variants keep their own fixed language.
 
+Tap a controller row to choose which controller to configure; all attached controllers keep forwarding input. Each row shows its own output, and a Windows output/gyro change updates the matching phone profile without changing the controller currently selected for editing. If both sides edit the same revision, the host returns its accepted profile and the phone adopts it.
+
 ## DS4 motion and light
 
 - On Android 12 or later, the **DS4 gyro** switch appears when a DS4 controller's own public input-device sensors can be paired unambiguously. It is available only for DualShock 4 output.
 - A physical light-color control appears only when Android reports a controllable RGB light on the connected DS4. Color settings are saved separately for each phone controller profile.
 - The exact gyro/light behavior still needs testing with a physical DS4 on the target phone. If Android does not expose the RGB light, the app hides the color picker and reports that it is unavailable.
+- Motion uses only the connected controller's `InputDevice.getSensorManager()` (available since API 31), with both `TYPE_GYROSCOPE` and `TYPE_ACCELEROMETER` present and an unambiguous controller association. The app never substitutes the phone's internal sensors. Turning motion off or selecting Xbox output unregisters the sensor listener; the option is also synchronized when changed on Windows.
+- Android 12 alone does not guarantee that a phone's Bluetooth/input driver exposes the DS4 sensors. If the sensors are absent or cannot be associated safely, enabling motion is unavailable; an already-enabled preference can still be turned off. This implementation does not read raw Bluetooth HID reports. Alternatives require a compatible Android driver/firmware exposing those input-device sensors, or a separate raw-HID implementation with transport access appropriate to that device (for example, a privileged/system integration). Neither alternative is implemented or guaranteed here. See the official [input-device sensor API](https://developer.android.com/reference/android/view/InputDevice#getSensorManager()).
 
 ## Local build
 
@@ -30,7 +34,7 @@ With Android SDK, Android Studio JBR Java 21, Gradle 8.2.1 and Android Gradle Pl
 .\Build.ps1
 ```
 
-The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.4.0.apk` and `dist/ControllerBridge-Android-EN-v0.4.0.apk`.
+The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.5.0.apk` and `dist/ControllerBridge-Android-EN-v0.5.0.apk`.
 
 ## Current limits
 
@@ -59,11 +63,15 @@ Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **E
 4. Toque em **Conectar ao PC** e deixe a tela do app aberta durante o jogo. Escolha a saída Xbox 360 ou DualShock 4 no celular ou no painel Windows. No Windows, clique em um botão do desenho e pressione o botão físico que deve substituí-lo no controle conectado ao celular.
 5. Cada variante mantém seu idioma fixo.
 
+Toque na linha de um controle para escolher qual configurar; todos os controles vinculados continuam enviando entrada. Cada linha mostra sua própria saída, e uma mudança de saída/giroscópio no Windows atualiza o perfil correspondente no celular sem alterar o controle selecionado para edição. Se os dois lados editarem a mesma revisão, o host devolve o perfil aceito e o celular o aplica.
+
 ## Movimento e luz do DS4
 
 - No Android 12 ou superior, a opção **Giroscópio do DS4** aparece quando os sensores públicos do próprio controle DS4 podem ser associados sem ambiguidade. Ela só fica disponível para a saída DualShock 4.
 - O seletor de cor física aparece somente quando Android informa uma luz RGB controlável no DS4 conectado. A cor fica salva separadamente em cada perfil de controle do celular.
-- O funcionamento real do giroscópio e da luz ainda precisa ser verificado com um DS4 físico no celular de destino. Se Android não expuser a luz RGB, o app esconde o seletor e informa que o recurso não está disponível.
+- O funcionamento real do giroscópio e da luz ainda precisa ser verificado com um DS4 físico no celular de destino. Se Android não expuser a luz RGB, o app esconde o seletor e informa que o recurso não está disponível. Quando ativado com a saída DS4, o host Windows também serve os dados localmente por DSU/Cemuhook UDP em `127.0.0.1:26760` para provedores de emulador compatíveis.
+- O movimento usa somente `InputDevice.getSensorManager()` do controle conectado (disponível desde a API 31), com `TYPE_GYROSCOPE` e `TYPE_ACCELEROMETER` presentes e associação inequívoca ao controle. O app nunca usa os sensores internos do celular como substitutos. Desativar o movimento ou escolher a saída Xbox remove o listener dos sensores; a opção também é sincronizada quando alterada no Windows.
+- Ter Android 12 não garante que o driver Bluetooth/entrada do celular exponha os sensores do DS4. Se os sensores não estiverem disponíveis ou a associação for ambígua, não é possível ativar o movimento; uma preferência já ativada ainda pode ser desligada. Esta implementação não lê relatórios Bluetooth HID brutos. As alternativas exigem um driver/firmware Android compatível que exponha esses sensores de entrada ou uma implementação separada de HID bruto com acesso ao transporte adequado ao dispositivo (por exemplo, integração privilegiada/de sistema). Nenhuma dessas alternativas está implementada ou garantida aqui. Consulte a [API oficial de sensores do dispositivo de entrada](https://developer.android.com/reference/android/view/InputDevice#getSensorManager()).
 
 ## Build local
 
@@ -73,7 +81,7 @@ Com Android SDK, Java 21 do Android Studio JBR, Gradle 8.2.1 e Android Gradle Pl
 .\Build.ps1
 ```
 
-O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.4.0.apk` e `dist/ControllerBridge-Android-EN-v0.4.0.apk`.
+O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.5.0.apk` e `dist/ControllerBridge-Android-EN-v0.5.0.apk`.
 
 ## Limites atuais
 

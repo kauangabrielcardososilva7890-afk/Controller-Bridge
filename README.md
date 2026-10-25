@@ -11,7 +11,7 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 - **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-PT-BR-v0.4.0.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-EN-v0.4.0.apk)
 - **Windows app (ZIP with EXE):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-PT-BR-v0.4.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-EN-v0.4.0.zip)
 
-Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
+These links point to the latest published packages (v0.4.0). The v0.5.0 source is available in this repository; its installable packages are not published yet. Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
 
 ### How it works
 
@@ -26,7 +26,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Requirements
 
 - Android 8.0 or later with Bluetooth gamepad support.
-- Windows 11 x64. The Windows 0.4.0 ZIP includes its private .NET runtime and official client DLL.
+- Windows 11 x64. The Windows 0.5.0 ZIP includes its private .NET runtime and official client DLL.
 - The official signed ViGEmBus installer and required license notices are included. If the driver is missing, first start asks before opening its visible installer and Windows UAC; cancelling stops startup.
 - For USB: a data USB cable and Android USB debugging. Setup finds Android SDK Platform Tools (`adb`) automatically. If missing, it opens Google's official download page for your terms acceptance and asks where you extracted `adb.exe`; SDK tools are not bundled or downloaded silently.
 
@@ -57,7 +57,7 @@ Wi-Fi is convenient but can have more variable latency than USB, depending on th
 - Windows dashboard with live button highlights, per-controller Xbox 360 / DualShock 4 output selection, and button remapping initiated from the PC.
 - Automatic standard mapping, plus individual button remapping, axis reassignment, inversion and calibration.
 - Xbox 360 or DualShock 4 virtual output selected per controller.
-- Per-profile DS4 motion forwarding toggle when Android exposes compatible controller sensors.
+- Per-profile DS4 motion forwarding toggle when Android exposes compatible controller sensors; the Windows host also exposes motion locally over UDP at `127.0.0.1:26760` for compatible emulator providers. The UDP endpoint starts only while DS4 motion is enabled.
 - USB/ADB and opt-in authenticated Wi-Fi transports.
 - Conditional DS4 RGB light control: the color picker appears only if Android exposes a controllable RGB light on that DS4. Android 12 or later is required for this public lights API.
 - Separate PT-BR and EN Android and Windows downloads. Each Android variant stays in its selected language.
@@ -90,7 +90,7 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 - **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-PT-BR-v0.4.0.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Android-EN-v0.4.0.apk)
 - **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-PT-BR-v0.4.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.4.0/ControllerBridge-Windows-EN-v0.4.0.zip)
 
-Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
+Estes links apontam para os pacotes publicados mais recentes (v0.4.0). O código-fonte da v0.5.0 está neste repositório; seus pacotes instaláveis ainda não foram publicados. Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
 
 ### Como funciona
 
@@ -105,7 +105,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Requisitos
 
 - Android 8.0 ou superior com suporte a controles Bluetooth.
-- Windows 11 x64. O ZIP Windows 0.4.0 inclui seu runtime privado do .NET e a DLL cliente oficial.
+- Windows 11 x64. O ZIP Windows 0.5.0 inclui seu runtime privado do .NET e a DLL cliente oficial.
 - O instalador oficial assinado do ViGEmBus e os avisos de licença exigidos estão incluídos. Se faltar o driver, a primeira abertura pergunta antes de mostrar seu instalador e o UAC do Windows; cancelar interrompe a abertura.
 - Para USB: cabo de dados e depuração USB do Android. A preparação localiza Android SDK Platform Tools (`adb`) automaticamente. Se faltar, ela abre a página oficial da Google para seu aceite dos termos e pede onde você extraiu `adb.exe`; as ferramentas SDK não são incluídas nem baixadas silenciosamente.
 
