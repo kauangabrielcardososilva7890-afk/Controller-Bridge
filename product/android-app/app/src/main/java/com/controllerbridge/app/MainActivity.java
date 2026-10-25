@@ -186,11 +186,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         inputManager = (InputManager)getSystemService(Context.INPUT_SERVICE);
         profiles = new PhoneProfileStore(this);
         wifiPairings = new WifiPairingStore(this);
-        String savedLanguage=getSharedPreferences("controller-bridge",MODE_PRIVATE).getString("language",null);
-        if(savedLanguage==null) {
-            english=!"pt".equals(BuildConfig.DEFAULT_LANGUAGE);
-            getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString("language",english?"en":"pt").apply();
-        } else english=!"pt".equals(savedLanguage);
+        english="en".equals(BuildConfig.DEFAULT_LANGUAGE);
         wifiMode=getSharedPreferences("controller-bridge",MODE_PRIVATE).getBoolean("wifi_mode",false);
         installId = getSharedPreferences("controller-bridge", MODE_PRIVATE).getString("install_id", null);
         if (installId == null) {
@@ -255,29 +251,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         scroll.setBackgroundColor(0xff11161d);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(16), dp(14), dp(16), dp(24));
+        root.setPadding(dp(14), dp(10), dp(14), dp(18));
         root.setBackgroundColor(0xff11161d);
         scroll.addView(root);
-
-        LinearLayout languageRow=new LinearLayout(this); languageRow.setOrientation(LinearLayout.HORIZONTAL); languageRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView languageLabel=text(tr("IDIOMA","LANGUAGE"),10,true); languageLabel.setTextColor(0xff8292a4);
-        languageRow.addView(languageLabel,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f));
-        Button ptButton=button("PT"); Button enButton=button("EN");
-        ptButton.setTextColor(english?0xffa9b7c5:Color.WHITE); enButton.setTextColor(english?Color.WHITE:0xffa9b7c5);
-        ptButton.setBackground(rounded(english?0xff202833:0xff397cf6,english?0xff303c49:0xff397cf6,7));
-        enButton.setBackground(rounded(english?0xff397cf6:0xff202833,english?0xff397cf6:0xff303c49,7));
-        languageRow.addView(ptButton,new LinearLayout.LayoutParams(dp(48),dp(36)));
-        LinearLayout.LayoutParams enParams=new LinearLayout.LayoutParams(dp(48),dp(36)); enParams.leftMargin=dp(6); languageRow.addView(enButton,enParams);
-        root.addView(languageRow,fullWidth());
-        View.OnClickListener chooseLanguage=view->{boolean next=view==enButton; if(next==english)return; english=next;
-            String addressDraft=hostAddress==null?null:hostAddress.getText().toString();
-            String pairingDraft=pairingCodeInput==null?null:pairingCodeInput.getText().toString();
-            getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString("language",english?"en":"pt").apply();
-            setupLabels(); buildUi();
-            if(addressDraft!=null)hostAddress.setText(addressDraft);
-            if(pairingDraft!=null)pairingCodeInput.setText(pairingDraft);
-            updateTransportUi(); renderControllerList(); renderControllerDetails(); };
-        ptButton.setOnClickListener(chooseLanguage); enButton.setOnClickListener(chooseLanguage);
 
         TextView title = text("CONTROLLER BRIDGE", 20, true);
         title.setTextColor(0xfff2f6fb);
@@ -288,9 +264,17 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         root.addView(subtitle);
 
         LinearLayout connectionCard = card(root, tr("CONEXÃO COM O PC","PC CONNECTION"));
-        connectionStatus = text(tr("Desconectado","Disconnected"), 15, true);
+        LinearLayout connectionHead=new LinearLayout(this); connectionHead.setOrientation(LinearLayout.HORIZONTAL); connectionHead.setGravity(Gravity.CENTER_VERTICAL);
+        connectionStatus = text(tr("Desconectado","Disconnected"), 13, true);
         connectionStatus.setTextColor(0xffffc66d);
-        connectionCard.addView(connectionStatus);
+        connectionStatus.setMaxLines(2);
+        connectionHead.addView(connectionStatus,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f));
+        connectionButton = button(tr("Conectar","Connect"));
+        connectionButton.setBackground(rounded(0xff397cf6, 0xff397cf6, 10));
+        connectionButton.setTextColor(Color.WHITE);
+        connectionHead.addView(connectionButton,new LinearLayout.LayoutParams(dp(140),dp(42)));
+        connectionCard.addView(connectionHead,fullWidth());
+        connectionButton.setOnClickListener(v -> toggleConnection());
         transportPicker=new Spinner(this);
         ArrayAdapter<String> transportAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,
                 new String[]{tr("USB · ADB Reverse","USB · ADB Reverse"),tr("Wi-Fi · mesma rede","Wi-Fi · same network")});
@@ -325,14 +309,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
-        connectionButton = button(tr("Conectar ao PC","Connect to PC"));
-        connectionButton.setBackground(rounded(0xff397cf6, 0xff397cf6, 10));
-        connectionButton.setTextColor(Color.WHITE);
-        connectionCard.addView(connectionButton, fullWidth());
-        connectionButton.setOnClickListener(v -> toggleConnection());
-        usbNote=text(tr("USB · Autorize a depuração e configure `adb reverse tcp:47652 tcp:47652` no PC.","USB · Allow debugging and run `adb reverse tcp:47652 tcp:47652` on the PC."), 12, false);
+        usbNote=text(tr("USB · Autorize a depuração e execute `adb reverse tcp:47652 tcp:47652`.","USB · Allow debugging and run `adb reverse tcp:47652 tcp:47652`."), 10, false);
         usbNote.setTextColor(0xffb4c0cd); connectionCard.addView(usbNote);
-        wifiNote=text(tr("Wi-Fi · Inicie o host com `--wifi`, use a mesma rede, informe o IP e o código mostrado no PC.","Wi-Fi · Start the host with `--wifi`, join the same network, and enter the PC IP and displayed code."), 11, true);
+        wifiNote=text(tr("Wi-Fi · Mesma rede, host iniciado com `--wifi` e código do PC.","Wi-Fi · Same network, host started with `--wifi`, and the PC pairing code."), 10, false);
         wifiNote.setTextColor(0xffb4c0cd); connectionCard.addView(wifiNote);
         updateTransportUi();
 
@@ -340,24 +319,27 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         controllerList = new LinearLayout(this);
         controllerList.setOrientation(LinearLayout.VERTICAL);
         controllerCard.addView(controllerList, fullWidth());
+        LinearLayout profileCard = card(root, tr("PERFIL SELECIONADO","SELECTED PROFILE"));
+        profileSummary = text(tr("Selecione um controle para configurar.","Select a controller to configure."),13,false);
+        profileSummary.setTextColor(0xff8f9eae); profileCard.addView(profileSummary);
         TextView outputLabel=text(tr("SAÍDA DO PC","PC OUTPUT"),10,true); outputLabel.setTextColor(0xff8494a6);
-        outputLabel.setPadding(0,dp(12),0,0); controllerCard.addView(outputLabel);
+        outputLabel.setPadding(0,dp(8),0,0); profileCard.addView(outputLabel);
         outputPicker = new Spinner(this);
         outputAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new String[]{"Xbox 360 (XInput)", "DualShock 4"});
         outputAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         outputPicker.setAdapter(outputAdapter);
-        controllerCard.addView(outputPicker, fullWidth());
+        profileCard.addView(outputPicker, fullWidth());
         gyroToggle = new Switch(this);
         gyroToggle.setText(tr("Giroscópio do DS4","DS4 gyro")); gyroToggle.setTextSize(14); gyroToggle.setTextColor(0xffe5ebf2);
         gyroToggle.setPadding(0,dp(8),0,dp(2));
-        controllerCard.addView(gyroToggle,fullWidth());
+        profileCard.addView(gyroToggle,fullWidth());
         gyroStatus=text(tr("Disponível somente na saída DualShock 4.","Available only with DualShock 4 output."),11,false); gyroStatus.setTextColor(0xff8f9eae);
-        controllerCard.addView(gyroStatus,fullWidth());
+        profileCard.addView(gyroStatus,fullWidth());
         lightbarStatus=text(tr("Luz RGB física indisponível neste controle.","Physical RGB light unavailable on this controller."),11,false);
-        lightbarStatus.setTextColor(0xff8f9eae); controllerCard.addView(lightbarStatus,fullWidth());
+        lightbarStatus.setTextColor(0xff8f9eae); profileCard.addView(lightbarStatus,fullWidth());
         lightbarButton=button(tr("Escolher cor da luz","Choose light color"));
         lightbarButton.setOnClickListener(v->{Controller current=selected(); if(current!=null) showLightbarPicker(current);});
-        controllerCard.addView(lightbarButton,fullWidth());
+        profileCard.addView(lightbarButton,fullWidth());
         lightbarButton.setVisibility(View.GONE);
         gyroToggle.setOnCheckedChangeListener((button,checked)->{
             if(refreshingUi)return;
@@ -380,10 +362,6 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
-        profileSummary = text(tr("Nenhum controle detectado.","No controller detected."), 13, false);
-        profileSummary.setTextColor(0xff8f9eae);
-        controllerCard.addView(profileSummary);
-
         LinearLayout liveCard = card(root, tr("ENTRADA AO VIVO","LIVE INPUT"));
         liveInput = text(tr("Conecte um controle Bluetooth ao celular.","Connect a Bluetooth controller to your phone."), 14, false);
         liveInput.setPadding(dp(12), dp(10), dp(12), dp(10));
@@ -404,10 +382,6 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         mappingRows = new LinearLayout(this);
         mappingRows.setOrientation(LinearLayout.VERTICAL);
         mappingCard.addView(mappingRows, fullWidth());
-        LinearLayout noteCard=card(root,tr("DICA","TIP"));
-        noteCard.addView(text(tr("Mantenha esta tela aberta durante o jogo. Se uma entrada não aparecer no teste ao vivo, ela não será enviada ao PC.","Keep this screen open while playing. Inputs that do not appear in the live test will not be sent to the PC."),12,false));
-        noteCard.addView(text(tr("O sensor de movimento pode ser usado na saída DS4. O Wi-Fi usa pareamento com código; a cor da luz só aparece quando Android expõe RGB controlável.","Motion sensors can be forwarded to DS4 output. Wi-Fi uses code-based pairing; light color appears only when Android exposes controllable RGB."),11,false));
-
         setContentView(scroll);
         updateConnectionUi();
         updatePendingInstruction();
@@ -419,13 +393,13 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if(connectionButton==null || connectionStatus==null) return;
         updateTransportUi();
         if(bridge==null) {
-            connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
+            connectionButton.setText(tr("Conectar","Connect"));
             connectionStatus.setText(tr("Desconectado","Disconnected"));
         } else if(sessionReady) {
             connectionButton.setText(tr("Desconectar","Disconnect"));
             connectionStatus.setText(connectedOverWifi?tr("Wi-Fi seguro conectado","Secure Wi-Fi connected"):tr("Conectado ao host do PC por USB","Connected to PC host over USB"));
         } else {
-            connectionButton.setText(tr("Cancelar conexão","Cancel connection"));
+            connectionButton.setText(tr("Cancelar","Cancel"));
             String host=hostAddress.getText().toString().trim();
             connectionStatus.setText(tr("Conectando a ","Connecting to ")+host+":"+(wifiMode?WIFI_PORT:PORT)+"…");
         }
@@ -471,8 +445,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
     private LinearLayout card(LinearLayout parent,String heading) {
         LinearLayout outer=new LinearLayout(this); outer.setOrientation(LinearLayout.VERTICAL);
-        outer.setPadding(dp(14),dp(10),dp(14),dp(12)); outer.setBackground(rounded(0xff202833,0xff303c49,13));
-        LinearLayout.LayoutParams params=fullWidth(); params.topMargin=dp(12); parent.addView(outer,params);
+        outer.setPadding(dp(12),dp(8),dp(12),dp(10)); outer.setBackground(rounded(0xff202833,0xff303c49,13));
+        LinearLayout.LayoutParams params=fullWidth(); params.topMargin=dp(9); parent.addView(outer,params);
         TextView title=text(heading,11,true); title.setTextColor(0xff6fa5ff); title.setLetterSpacing(.06f);
         outer.addView(title); return outer;
     }
@@ -844,7 +818,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         connectedOverWifi=wifiMode;
         connectionStatus.setText(wifiMode?tr("Autenticando Wi-Fi com ","Authenticating Wi-Fi with ")+host+":"+port+"…"
                 :tr("Conectando por USB a ","Connecting over USB to ")+host+":"+port+"…");
-        connectionButton.setText(tr("Cancelar conexão","Cancel connection"));
+        connectionButton.setText(tr("Cancelar","Cancel"));
         bridge = new BridgeClient(this);
         sessionReady = false;
         updateTransportUi();
@@ -949,7 +923,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         for (Controller controller : controllers.values()) { controller.attached = false; controller.profileReady = false; clearInput(controller, false); }
         refreshMotionSubscriptions();
         connectionStatus.setText(tr("Desconectado: ","Disconnected: ") + displayReason(reason));
-        connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
+        connectionButton.setText(tr("Conectar","Connect"));
         updateTransportUi();
         renderControllerDetails();
     }
@@ -1084,7 +1058,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         clearPendingPairing();
         connectedOverWifi=false;
         connectionStatus.setText(status);
-        connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
+        connectionButton.setText(tr("Conectar","Connect"));
         old.closeAfterFlush();
         updateTransportUi();
         renderControllerDetails();
@@ -1148,7 +1122,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             LinearLayout.LayoutParams badgeParams=new LinearLayout.LayoutParams(dp(38),dp(38)); badgeParams.setMargins(0,0,dp(10),0); item.addView(index,badgeParams);
             LinearLayout labels=new LinearLayout(this); labels.setOrientation(LinearLayout.VERTICAL);
             TextView name=text(controller.displayName(),15,true); name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            TextView state=text(controller.attached?tr("Conectado ao PC","Connected to PC"):tr("Conectado ao celular · aguardando PC","Connected to phone · waiting for PC"),11,false);
+            String linkState=controller.attached?tr("PC conectado","PC connected"):tr("Celular conectado · PC aguardando","Phone connected · waiting for PC");
+            String outputState=controller.output.equals("ds4")?"DualShock 4":"Xbox 360";
+            TextView state=text(linkState+"  ·  "+outputState,11,false);
             state.setTextColor(controller.attached?0xff7bd69c:0xff93a3b4);
             labels.addView(name); labels.addView(state);
             item.addView(labels,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f));
