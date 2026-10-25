@@ -6,6 +6,14 @@ namespace ControllerBridge.Host;
 public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles, Action<string> log, Func<DateTimeOffset>? clock = null, string? expectedClientId = null) : IDisposable
 {
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
+    public event Action<ControllerSnapshot>? ControllerChanged;
+    public event Action<object>? HostMessageRequested;
+    public IReadOnlyList<ControllerSnapshot> GetSnapshots()
+    {
+        lock (_gate)
+            return _controllers.Select(pair => new ControllerSnapshot(SessionId, pair.Key, pair.Value.Name,
+                pair.Value.Profile.Output, pair.Value.Profile.GyroEnabled, pair.Value.Profile.Revision, true, pair.Value.State)).ToArray();
+    }
     private readonly Dictionary<string, Entry> _controllers = new();
     private readonly object _gate = new();
     private readonly Func<DateTimeOffset> _clock = clock ?? (() => DateTimeOffset.UtcNow);
@@ -21,6 +29,7 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         public long LastMotionTimestamp { get; set; } = -1;
         public DateTimeOffset LastState { get; set; } = now;
         public bool TimedOut { get; set; }
+        public GamepadState State { get; set; } = GamepadState.Neutral();
     }
 
     public object? ProcessLine(string line, DateTimeOffset? receivedAt = null)
@@ -83,8 +92,10 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         var name = root.RequiredString("name", 256);
         var profile = profiles.Load(profileId);
         var output = outputs.Create(SessionId + "/" + id, profile.Kind);
-        _controllers.Add(id, new(profileId, descriptor, name, profile, output, _clock()));
+        var entry = new Entry(profileId, descriptor, name, profile, output, _clock());
+        _controllers.Add(id, entry);
         log($"Controle conectado: {name} ({id}), saída {profile.Output}.");
+        Publish(id, entry, true);
         return ProfileMessage(id, profileId, profile);
     }
 
@@ -109,6 +120,8 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         if (state.Motion != null) entry.LastMotionTimestamp = state.Motion.TimestampNanoseconds;
         entry.LastState = receivedAt;
         entry.TimedOut = false;
+        entry.State = state;
+        Publish(id, entry, true);
         return null;
     }
 
@@ -132,11 +145,54 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         var former = entry.Output;
         if (replacement != null) entry.Output = replacement;
         entry.Profile = profile;
+        entry.State = GamepadState.Neutral();
         entry.LastMotionTimestamp = -1;
         SafeNeutralize(entry);
         if (replacement != null)
             try { former.Dispose(); } catch (Exception error) { log($"Falha ao liberar saída anterior: {error.GetBaseException().Message}"); }
+        Publish(id, entry, true);
         return new { v = 1, type = "profile_saved", controller_id = id, profile_id = entry.ProfileId, revision = profile.Revision, gyro_enabled = profile.GyroEnabled };
+    }
+
+    public void SetOutputFromDashboard(string id, string output, bool gyroEnabled)
+    {
+        lock (_gate)
+        {
+            var entry = Find(id);
+            var profile = new ControllerProfile(entry.Profile.Revision + 1, output,
+                entry.Profile.Mapping.Clone(), output == "ds4" && gyroEnabled);
+            _ = profile.Kind;
+            entry.Output.Neutralize();
+            IControllerOutput? replacement = profile.Kind == entry.Profile.Kind ? null : outputs.Create(SessionId + "/" + id, profile.Kind);
+            try { profiles.Save(entry.ProfileId, entry.Descriptor, profile); }
+            catch { replacement?.Dispose(); throw; }
+            var former = entry.Output;
+            if (replacement != null) entry.Output = replacement;
+            entry.Profile = profile;
+            entry.State = GamepadState.Neutral();
+            entry.LastMotionTimestamp = -1;
+            SafeNeutralize(entry);
+            if (replacement != null)
+                try { former.Dispose(); } catch (Exception error) { log($"Falha ao liberar saída anterior: {error.GetBaseException().Message}"); }
+            Publish(id, entry, true);
+            HostMessageRequested?.Invoke(new
+            {
+                v = 1, type = "profile", controller_id = id, profile_id = entry.ProfileId,
+                revision = profile.Revision, output = profile.Output, gyro_enabled = profile.GyroEnabled,
+                mapping = profile.Mapping
+            });
+        }
+    }
+
+    public void RequestButtonCapture(string id, string logicalButton)
+    {
+        if (!GamepadState.ButtonNames.Contains(logicalButton, StringComparer.Ordinal))
+            throw new ArgumentException("Unknown logical button.", nameof(logicalButton));
+        lock (_gate)
+        {
+            _ = Find(id);
+            HostMessageRequested?.Invoke(new { v = 1, type = "mapping_capture", controller_id = id, button = logicalButton });
+        }
     }
 
     private Entry Find(string id) => _controllers.TryGetValue(id, out var entry) ? entry : throw new ProtocolException("unknown_controller", "Anuncie o controle com attach antes de enviar comandos.");
@@ -144,11 +200,13 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
     {
         var entry = Find(id);
         _controllers.Remove(id);
+        Publish(id, entry, false);
         try { entry.Output.Dispose(); } catch (Exception error) { log($"Falha ao liberar {id}: {error.GetBaseException().Message}"); }
         log($"Controle desconectado: {entry.Name} ({id}).");
         return null;
     }
     private static object ProfileMessage(string id, string profileId, ControllerProfile profile) => new { v = 1, type = "profile", controller_id = id, profile_id = profileId, revision = profile.Revision, output = profile.Output, gyro_enabled = profile.GyroEnabled, mapping = profile.Mapping };
+    private void Publish(string id, Entry entry, bool connected) => ControllerChanged?.Invoke(new(SessionId, id, entry.Name, entry.Profile.Output, entry.Profile.GyroEnabled, entry.Profile.Revision, connected, connected ? entry.State : GamepadState.Neutral()));
     private void SafeNeutralize(Entry entry)
     {
         try { entry.Output.Neutralize(); } catch (Exception error) { log($"Falha ao neutralizar controle: {error.GetBaseException().Message}"); }
@@ -177,4 +235,3 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         }
     }
 }
-

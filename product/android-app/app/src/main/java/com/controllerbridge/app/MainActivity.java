@@ -122,6 +122,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         String lastSentProfileJson;
         String pendingProfileJson;
         int pendingRevision;
+        JSONObject deferredHostProfile;
         float hatX;
         float hatY;
         boolean attached;
@@ -852,9 +853,25 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         String type = message.optString("type", "");
         String id = message.optString("controller_id", "");
         Controller controller = findById(id);
-        if ("profile".equals(type) && controller != null) {
+        if ("mapping_capture".equals(type)) {
+            String logicalButton = message.optString("button", "");
+            String requestedProfileId = message.optString("profile_id", "");
+            if (controller == null || !controller.attached || !controller.profileReady
+                    || (!requestedProfileId.isEmpty() && !controller.profileId.equals(requestedProfileId))
+                    || !MappingModel.BUTTONS.contains(logicalButton)) return;
+            selectedControllerId = controller.id();
+            pendingButton = logicalButton;
+            pendingAxis = null;
+            renderControllerList();
+            renderControllerDetails();
+            updatePendingInstruction();
+        } else if ("profile".equals(type) && controller != null) {
             String returnedId = message.optString("profile_id", "");
             if (!controller.profileId.equals(returnedId)) { connectionStatus.setText(tr("O PC retornou um perfil incompatível.","The PC returned an incompatible profile.")); return; }
+            if (controller.profileReady) {
+                receiveHostProfileUpdate(controller, message);
+                return;
+            }
             int hostRevision = message.optInt("revision", 1);
             String hostOutput = message.optString("output", "xbox360");
             JSONObject hostMapping = message.optJSONObject("mapping");
@@ -896,6 +913,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
                 controller.pendingProfileJson = null;
                 profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
             }
+            applyDeferredHostProfile(controller, ackRevision);
             connectionStatus.setText(tr("Perfil salvo no PC · revisão ","Profile saved on PC · revision ") + controller.revision);
             renderControllerDetails();
         } else if ("pong".equals(type)) {
@@ -910,6 +928,52 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             if (controller != null) { reconcilePendingProfile(controller);
                 if (message.optString("code", "").equals("output_unavailable")) controller.profileReady = false; }
         }
+    }
+
+    /** Apply a newer profile pushed by the desktop UI without echoing it back as a phone edit. */
+    private void receiveHostProfileUpdate(Controller controller, JSONObject message) {
+        if (!controller.profileId.equals(message.optString("profile_id", ""))) return;
+        int hostRevision = message.optInt("revision", -1);
+        if (hostRevision < 1) return;
+
+        // A phone edit already sent to the host wins until its acknowledgement arrives.
+        // Keep the newest desktop snapshot and resolve it against the acknowledged revision.
+        if (controller.pendingProfileSave) {
+            JSONObject deferred = controller.deferredHostProfile;
+            if (deferred == null || hostRevision > deferred.optInt("revision", -1))
+                controller.deferredHostProfile = message;
+            return;
+        }
+        applyHostProfile(controller, message, hostRevision);
+    }
+
+    private void applyDeferredHostProfile(Controller controller, int acknowledgedRevision) {
+        if (controller.pendingProfileSave) return;
+        JSONObject deferred = controller.deferredHostProfile;
+        controller.deferredHostProfile = null;
+        if (deferred == null) return;
+        int deferredRevision = deferred.optInt("revision", -1);
+        if (deferredRevision <= Math.max(acknowledgedRevision, controller.revision)) return;
+        applyHostProfile(controller, deferred, deferredRevision);
+    }
+
+    private void applyHostProfile(Controller controller, JSONObject message, int hostRevision) {
+        if (!controller.profileId.equals(message.optString("profile_id", "")) || hostRevision <= controller.revision) return;
+        String hostOutput = message.optString("output", controller.output);
+        if (!"ds4".equalsIgnoreCase(hostOutput) && !"xbox360".equalsIgnoreCase(hostOutput)) return;
+
+        JSONObject hostMapping = message.optJSONObject("mapping");
+        if (hostMapping != null && hostMapping.length() > 0)
+            controller.mapping = decodeMapping(hostMapping);
+        controller.output = "ds4".equalsIgnoreCase(hostOutput) ? "ds4" : "xbox360";
+        controller.gyroEnabled = controller.output.equals("ds4") && message.optBoolean("gyro_enabled", controller.gyroEnabled);
+        controller.revision = hostRevision;
+        controller.lastSentProfileJson = null;
+        profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
+        refreshMotionSubscriptions();
+        renderControllerList();
+        if (controller.id().equals(selectedControllerId)) renderControllerDetails();
+        if (bridge != null && sessionReady && controller.attached && controller.profileReady) sendState(controller);
     }
 
     @Override public void onDisconnected(BridgeClient source, String reason) {
@@ -1045,6 +1109,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         controller.pendingProfileSave = false;
         controller.pendingProfileJson = null;
         controller.pendingRevision = 0;
+        controller.deferredHostProfile = null;
     }
 
     private void disconnectGracefully(String status) {
@@ -1286,4 +1351,3 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
 }
-

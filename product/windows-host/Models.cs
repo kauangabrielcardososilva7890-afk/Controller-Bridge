@@ -71,6 +71,8 @@ public sealed record ControllerProfile(int Revision, string Output, JsonElement 
     };
 }
 
+public sealed record ControllerSnapshot(string SessionId, string ControllerId, string Name, string Output, bool GyroEnabled, int Revision, bool Connected, GamepadState State);
+
 public sealed class ProtocolException(string code, string message) : Exception(message)
 {
     public string Code { get; } = code;

@@ -3,12 +3,32 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Security.Cryptography;
+using System.Collections.Concurrent;
 
 namespace ControllerBridge.Host;
 
 public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action<string> log)
 {
     private readonly SemaphoreSlim _clientSlots = new(16);
+    private readonly ConcurrentDictionary<string, ControllerSession> _sessions = new(StringComparer.Ordinal);
+    private int _phoneConnections;
+    public event Action<ControllerSnapshot>? ControllerChanged;
+    public event Action<int>? PhoneConnectionCountChanged;
+
+    public int PhoneConnectionCount => Volatile.Read(ref _phoneConnections);
+    public IReadOnlyList<ControllerSnapshot> GetControllers() => _sessions.Values.SelectMany(session => session.GetSnapshots()).ToArray();
+
+    public void SetControllerOutput(ControllerSnapshot controller, string output, bool gyroEnabled)
+    {
+        if (!_sessions.TryGetValue(controller.SessionId, out var session)) throw new InvalidOperationException("The phone session is no longer connected.");
+        session.SetOutputFromDashboard(controller.ControllerId, output, gyroEnabled);
+    }
+
+    public void RequestButtonCapture(ControllerSnapshot controller, string logicalButton)
+    {
+        if (!_sessions.TryGetValue(controller.SessionId, out var session)) throw new InvalidOperationException("The phone session is no longer connected.");
+        session.RequestButtonCapture(controller.ControllerId, logicalButton);
+    }
     public async Task RunAsync(int port, CancellationToken cancellationToken, WifiListenerOptions? wifi = null)
     {
         using var stopAll = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -83,6 +103,25 @@ public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action
             }
             using var crypto = secure;
             using var session = new ControllerSession(outputs, profiles, log, expectedClientId: crypto?.ClientId);
+            using var writeGate = new SemaphoreSlim(1, 1);
+            async Task WriteMessageAsync(object message)
+            {
+                var json = JsonSerializer.Serialize(message);
+                await writeGate.WaitAsync(cancellationToken);
+                try { await writer.WriteLineAsync((crypto?.Encrypt(json) ?? json).AsMemory(), cancellationToken); }
+                finally { writeGate.Release(); }
+            }
+            async Task SendExternalAsync(object message)
+            {
+                try { await WriteMessageAsync(message); }
+                catch (Exception error) when (error is OperationCanceledException or IOException or SocketException or CryptographicException or ObjectDisposedException)
+                { log($"Não foi possível enviar atualização ao celular: {error.GetBaseException().Message}"); }
+            }
+            _sessions[session.SessionId] = session;
+            session.ControllerChanged += snapshot => ControllerChanged?.Invoke(snapshot);
+            session.HostMessageRequested += message => _ = SendExternalAsync(message);
+            var currentConnections = Interlocked.Increment(ref _phoneConnections);
+            PhoneConnectionCountChanged?.Invoke(currentConnections);
             using var queue = new LatestMessageQueue();
             var processor = Task.Run(async () =>
             {
@@ -94,8 +133,7 @@ public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action
                             var reply = session.ProcessLine(message.Line, message.ReceivedAt);
                             if (reply != null)
                             {
-                                var response = JsonSerializer.Serialize(reply);
-                                await writer.WriteLineAsync((crypto?.Encrypt(response) ?? response).AsMemory(), timerCancellation.Token);
+                                await WriteMessageAsync(reply);
                             }
                         }
                 }
@@ -128,6 +166,9 @@ public sealed class HostServer(OutputPool outputs, ProfileStore profiles, Action
                 await timer;
             }
             log("Celular desconectado; controles liberados.");
+            _sessions.TryRemove(session.SessionId, out _);
+            currentConnections = Interlocked.Decrement(ref _phoneConnections);
+            PhoneConnectionCountChanged?.Invoke(currentConnections);
         }
     }
 }
@@ -159,4 +200,3 @@ public sealed class BoundedLineReader(StreamReader reader, int maxLength)
         }
     }
 }
-

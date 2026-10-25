@@ -1,7 +1,10 @@
+using System.Windows.Forms;
+
 namespace ControllerBridge.Host;
 
 public static class Program
 {
+    [STAThread]
     public static async Task<int> Main(string[] args)
     {
         try
@@ -44,6 +47,7 @@ public static class Program
                 return failed ? 1 : 0;
             }
             WifiListenerOptions? wifi = null;
+            string[] localIps = [];
             if (wifiMode)
             {
                 var wifiPort = int.Parse(Argument(args, "--wifi-port") ?? "47653");
@@ -64,6 +68,7 @@ public static class Program
                         .DistinctBy(item => item.Address)
                         .OrderBy(item => item.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211 ? 0 : item.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Ethernet ? 1 : 2)
                         .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+                    localIps = addresses.Select(item => item.Address).ToArray();
                     foreach (var address in addresses) Console.WriteLine(Tr($"IP para conectar no celular ({address.Name}): {address.Address}", $"IP to enter on the phone ({address.Name}): {address.Address}"));
                     if (addresses.Length == 0) Console.WriteLine(Tr("Nenhum IP local ativo encontrado. Conecte o PC à mesma rede do celular.", "No active LAN IPv4 found. Connect this PC to the same network as the phone."));
                 }
@@ -73,10 +78,43 @@ public static class Program
             }
             else Console.WriteLine(Tr("Conexão USB/ADB ativa em 127.0.0.1:47652; IP não é necessário no celular.", "USB/ADB is active on 127.0.0.1:47652; no IP is needed on the phone."));
             Console.WriteLine(diagnostic ? Tr("STATUS: ATIVO — aguardando o celular (diagnóstico, sem saída virtual).", "STATUS: ACTIVE — waiting for the phone (diagnostics, no virtual output).") : Tr("STATUS: ATIVO — aguardando o app do celular.", "STATUS: ACTIVE — waiting for the phone app."));
-            Console.WriteLine(Tr("Esta janela precisa permanecer aberta. Pressione Ctrl+C para encerrar.", "Keep this window open. Press Ctrl+C to stop."));
             using var cancellation = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
-            await new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english))).RunAsync(port, cancellation.Token, wifi);
+            Console.WriteLine(Tr("O painel Controller Bridge será aberto. Digite stop ou parar aqui para encerrar.", "The Controller Bridge dashboard will open. Type stop or parar here to stop."));
+            Console.Write("> ");
+            var host = new HostServer(outputs, new ProfileStore(profileDirectory), message => Console.WriteLine(LocalizeLog(message, english)));
+            var serverTask = host.RunAsync(port, cancellation.Token, wifi);
+            ApplicationConfiguration.Initialize();
+            using var dashboard = new DashboardForm(english, host, localIps, wifiMode, wifi?.Port ?? 47653,
+                wifi == null ? "—" : Convert.ToHexString(wifi.PairingKey).ToLowerInvariant(), cancellation.Cancel);
+            var commandReader = Task.Run(() =>
+            {
+                while (!cancellation.IsCancellationRequested)
+                {
+                    var command = Console.ReadLine();
+                    if (command == null) return;
+                    if (command.Trim().Equals("stop", StringComparison.OrdinalIgnoreCase) || command.Trim().Equals("parar", StringComparison.OrdinalIgnoreCase))
+                    {
+                        cancellation.Cancel();
+                        if (dashboard.IsHandleCreated && !dashboard.IsDisposed) dashboard.BeginInvoke(new Action(dashboard.Close));
+                        return;
+                    }
+                    Console.WriteLine(Tr("Digite stop ou parar para encerrar.", "Type stop or parar to stop."));
+                    Console.Write("> ");
+                }
+            });
+            _ = serverTask.ContinueWith(task =>
+            {
+                if (task.Exception != null)
+                {
+                    Console.Error.WriteLine(task.Exception.GetBaseException().Message);
+                    if (dashboard.IsHandleCreated && !dashboard.IsDisposed) dashboard.BeginInvoke(new Action(dashboard.Close));
+                }
+            }, TaskScheduler.Default);
+            Application.Run(dashboard);
+            cancellation.Cancel();
+            try { await serverTask; }
+            finally { _ = commandReader; }
             return 0;
         }
         catch (Exception error)
@@ -107,7 +145,7 @@ public static class Program
     private static void PrintHelp(bool english)
     {
         Console.WriteLine(english
-            ? "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  Default: authenticated Wi-Fi on port 47653; shows IP addresses and pairing code.\n  --usb        Use USB/ADB Reverse on loopback port 47652 instead.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version."
-            : "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  Padrão: Wi-Fi autenticado na porta 47653; mostra IPs e código de pareamento.\n  --usb        Usa USB/ADB Reverse na porta local 47652.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.");
+            ? "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client path] [--profiles folder] [--port 47652]\n  Default: authenticated Wi-Fi on port 47653; opens the dashboard with IPs and pairing code.\n  --usb        Use USB/ADB Reverse on loopback port 47652 instead.\n  Type stop or parar in the console, or close the dashboard, to stop the host.\n  --wifi-port N / --wifi-bind IP / --pairing-file path\n  --probe      Create and release Xbox 360 and DS4 outputs.\n  --self-test  Run protocol, authentication and lifecycle checks.\n  --version    Show the application version."
+            : "ControllerBridge.exe [--usb|--wifi] [--lang en|pt] [--diagnostic] [--vigem-client caminho] [--profiles pasta] [--port 47652]\n  Padrão: Wi-Fi autenticado na porta 47653; abre o painel com IPs e código de pareamento.\n  --usb        Usa USB/ADB Reverse na porta local 47652.\n  Digite stop ou parar no console, ou feche o painel, para encerrar.\n  --wifi-port N / --wifi-bind IP / --pairing-file caminho\n  --probe      Cria e libera saídas Xbox 360 e DS4.\n  --self-test  Executa verificações de protocolo, autenticação e ciclo de vida.\n  --version    Mostra a versão do aplicativo.");
     }
 }
