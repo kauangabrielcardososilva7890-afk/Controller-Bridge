@@ -6,6 +6,8 @@ Android client that forwards Bluetooth controllers recognized by the phone to th
 
 ## Install and connect
 
+Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`; **EN** installs as `com.controllerbridge.app.en`, so both can be installed together. Each starts in its named language, and the PT/EN selector can still switch languages inside either app.
+
 1. Pair the controller with Android in the system Bluetooth settings.
 2. Install/start the Controller Bridge Windows host and its required virtual controller driver on the PC.
 3. In the phone app, choose **USB** or **Wi-Fi**:
@@ -28,7 +30,7 @@ With Android SDK, Android Studio JBR Java 21, Gradle 8.2.1 and Android Gradle Pl
 .\Build.ps1
 ```
 
-The script builds offline, runs focused mapping and Wi-Fi security checks, and copies the installer to `dist/ControllerBridge-android.apk`.
+The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.3.0.apk` and `dist/ControllerBridge-Android-EN-v0.3.0.apk`.
 
 ## Current limits
 
@@ -46,6 +48,8 @@ The script builds offline, runs focused mapping and Wi-Fi security checks, and c
 Cliente Android que encaminha ao host Windows os controles Bluetooth reconhecidos pelo celular. A captura funciona enquanto o app está aberto, e o aplicativo mantém a tela ligada na tela principal.
 
 ## Instalar e conectar
+
+Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **EN** instala como `com.controllerbridge.app.en`, então as duas podem ficar instaladas juntas. Cada uma inicia no idioma indicado no nome, e o seletor PT/EN continua permitindo trocar o idioma dentro de qualquer versão.
 
 1. Pareie o controle com o Android nas configurações Bluetooth do sistema.
 2. Instale/inicie no PC Windows o host Controller Bridge e o driver de controle virtual exigido por ele.
@@ -69,7 +73,7 @@ Com Android SDK, Java 21 do Android Studio JBR, Gradle 8.2.1 e Android Gradle Pl
 .\Build.ps1
 ```
 
-O script compila offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e copia o instalador para `dist/ControllerBridge-android.apk`.
+O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.3.0.apk` e `dist/ControllerBridge-Android-EN-v0.3.0.apk`.
 
 ## Limites atuais
 
@@ -77,4 +81,6 @@ O script compila offline, executa verificações focadas de mapeamento e seguran
 - Entrada física, giroscópio, disponibilidade da luz RGB, tela sempre ligada e encaminhamento para jogos ainda precisam ser verificados no celular e controle reais.
 - Alguns controles paralelos podem não expor todos os botões/eixos ao Android; essas entradas podem ser remapeadas quando o Android as reconhece.
 - Wi-Fi exige iniciar o host do PC com `--wifi`, usar o IP local e informar o código exibido pelo host. O app não cria regras de roteador ou firewall.
+
+
 
