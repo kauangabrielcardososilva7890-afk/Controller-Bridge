@@ -83,6 +83,14 @@ final class PhoneProfileStore {
         } catch (JSONException impossible) { throw new IllegalStateException(impossible); }
     }
 
+    synchronized int getLightbarColor(String profileId, int fallback) {
+        return preferences.getInt("lightbar:" + profileId, fallback);
+    }
+
+    synchronized void putLightbarColor(String profileId, int color) {
+        preferences.edit().putInt("lightbar:" + profileId, color).apply();
+    }
+
     static String descriptor(InputDevice device) {
         String descriptor = device.getDescriptor();
         if (descriptor == null || descriptor.isBlank())
@@ -99,3 +107,4 @@ final class PhoneProfileStore {
         } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }
 }
+

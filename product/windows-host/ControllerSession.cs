@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace ControllerBridge.Host;
 
-public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles, Action<string> log, Func<DateTimeOffset>? clock = null) : IDisposable
+public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles, Action<string> log, Func<DateTimeOffset>? clock = null, string? expectedClientId = null) : IDisposable
 {
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
     private readonly Dictionary<string, Entry> _controllers = new();
@@ -40,7 +40,8 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
                 if (type == "hello")
                 {
                     if (_hello) throw new ProtocolException("invalid_message", "A sessão já foi iniciada.");
-                    _ = root.RequiredString("client_id", 128);
+                    var clientId = root.RequiredString("client_id", 128);
+                    if (expectedClientId != null && clientId != expectedClientId) throw new ProtocolException("client_id_mismatch", "Client identity does not match authenticated session.");
                     _ = root.RequiredString("app_version", 64);
                     _hello = true;
                     return new { v = 1, type = "welcome", session_id = SessionId, max_controllers = 4, outputs = new[] { "xbox360", "ds4" } };
@@ -176,3 +177,4 @@ public sealed class ControllerSession(OutputPool outputs, ProfileStore profiles,
         }
     }
 }
+

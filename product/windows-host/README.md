@@ -7,7 +7,7 @@
 ### Download and requirements
 
 - Download the latest `ControllerBridge-android.apk` for Android and `ControllerBridge.exe` for Windows from the GitHub Releases page.
-- Windows 11 x64 and the .NET 8 Desktop Runtime are required.
+- Windows 11 x64 and the .NET 8 Runtime are required.
 - Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. Use `--lang en` or `--lang pt` to choose the terminal language; otherwise it follows Windows language.
 - On Android, pair the PS4, Xbox, or other supported Bluetooth gamepad in system Bluetooth settings.
 
@@ -20,13 +20,21 @@
 
 Use **Diagnostic mode** (`ControllerBridge.exe --diagnostic`) to view incoming input without creating virtual controllers. Profiles and mappings are managed in the Android app and stored on the PC under `%LOCALAPPDATA%\ControllerBridge\profiles`.
 
+### Connect over Wi-Fi
+
+1. Connect the PC and phone to the same local network. Start `ControllerBridge.exe --wifi` (or add `--diagnostic` for a receiver-only test).
+2. The Windows window displays the PC's active LAN IPv4 addresses, port `47653`, and a 32-character pairing code. You can also run `ipconfig` in PowerShell and find **IPv4 Address** for the active Wi-Fi/Ethernet adapter. In the Android app choose **Wi-Fi**, enter that PC IP and port `47653`, paste the displayed pairing code, then connect.
+3. If Windows Firewall asks, allow Controller Bridge on your **private network only**. If the phone cannot connect, check that the PC/phone share a network and that the private-network firewall permission is enabled. The host does not create firewall rules automatically.
+
+Pairing authenticates both devices and encrypts/authenticates each input and profile message. The code is saved under `%LOCALAPPDATA%\ControllerBridge\pairing.key`; Android remembers it for that host. Keep the code private. To reset pairing, stop the host, delete that key file, restart with `--wifi`, and enter the new code on Android. Existing pairings then stop working. `--pairing-file path` selects another key file, `--wifi-port N` changes the LAN port, and `--wifi-bind IP` restricts the listener to one PC address. Wi-Fi is off by default; the USB/ADB loopback listener continues alongside it when enabled.
+
 ### Features and current limits
 
 - Multiple paired controllers with separate profiles and Xbox 360 / DualShock 4 output selection.
 - Automatic standard mapping with per-button remapping and axis calibration.
 - DS4 gyro pass-through can be enabled or disabled per profile when the controller exposes compatible motion sensors.
-- USB via ADB Reverse is supported. Wi-Fi mode is not available in this release.
-- The Windows host currently runs in a terminal. It listens only on the local PC connection and does not hide or modify controllers plugged directly into Windows. Physical controller lightbar color is not available in this release.
+- USB via ADB Reverse and opt-in authenticated, encrypted Wi-Fi are supported.
+- The Windows host currently runs in a terminal. USB uses loopback only; `--wifi` enables the separate LAN listener. It does not hide or modify controllers plugged directly into Windows. The Android app manages DS4 light color only if Android exposes an RGB light for that controller.
 - Xbox virtual outputs share Windows' four XInput slots with native controllers.
 - This project does not redistribute the virtual bus driver or its client library; install them separately.
 - ViGEmBus is an external dependency whose upstream repository is archived; check its official release page before installing.
@@ -57,13 +65,21 @@ Install the .NET 8 SDK and run `product/windows-host/Build.ps1`. The output is `
 
 Use o **Modo de diagnóstico** (`ControllerBridge.exe --diagnostic`) para visualizar os comandos recebidos sem criar controles virtuais. Os perfis e mapeamentos são gerenciados no app Android e salvos no PC em `%LOCALAPPDATA%\ControllerBridge\profiles`.
 
+### Conectar por Wi-Fi
+
+1. Conecte PC e celular à mesma rede local. Inicie `ControllerBridge.exe --wifi` (adicione `--diagnostic` para testar somente a recepção).
+2. A janela do Windows mostra os endereços IPv4 locais ativos do PC, a porta `47653` e um código de pareamento com 32 caracteres. Você também pode executar `ipconfig` no PowerShell e localizar **Endereço IPv4** do adaptador Wi-Fi/Ethernet ativo. No app Android escolha **Wi-Fi**, informe esse IP do PC e a porta `47653`, cole o código exibido e conecte.
+3. Se o Firewall do Windows perguntar, permita o Controller Bridge **somente na rede privada**. Se o celular não conectar, confira a rede compartilhada e a permissão do firewall para rede privada. O host não cria regras de firewall automaticamente.
+
+O pareamento autentica os dois dispositivos e criptografa/autentica cada mensagem de comando e perfil. O código fica salvo em `%LOCALAPPDATA%\ControllerBridge\pairing.key`; o Android o memoriza para esse host. Mantenha o código privado. Para refazer o pareamento, feche o host, apague esse arquivo de chave, inicie novamente com `--wifi` e informe o código novo no Android. Os pareamentos anteriores deixam de funcionar. `--pairing-file caminho` escolhe outro arquivo de chave, `--wifi-port N` muda a porta de rede e `--wifi-bind IP` limita a escuta a um endereço do PC. Wi-Fi fica desligado por padrão; a conexão USB/ADB local continua disponível ao mesmo tempo quando ele é ativado.
+
 ### Recursos e limites atuais
 
 - Vários controles pareados, com perfis separados e escolha de saída Xbox 360 / DualShock 4.
 - Mapeamento padrão automático, remapeamento individual de botões e calibração de eixos.
 - O giroscópio do DS4 pode ser ativado ou desativado por perfil quando o controle expõe sensores de movimento compatíveis. A cor da luz física do controle não está disponível nesta versão.
-- Conexão USB por ADB Reverse disponível. O modo Wi-Fi ainda não está disponível.
-- O host Windows funciona pelo terminal. Ele escuta apenas a conexão local do PC e não oculta nem altera controles conectados diretamente ao Windows.
+- Conexão USB por ADB Reverse e Wi-Fi opcional autenticado e criptografado disponíveis.
+- O host Windows funciona pelo terminal. USB usa somente a conexão local; `--wifi` ativa a escuta separada na rede. Ele não oculta nem altera controles conectados diretamente ao Windows. O app Android controla a cor da luz do DS4 somente quando Android expõe uma luz RGB para esse controle.
 - Saídas virtuais Xbox compartilham as quatro posições XInput do Windows com controles nativos.
 - Este projeto não redistribui o driver de barramento virtual nem sua biblioteca cliente; instale-os separadamente.
 - ViGEmBus é uma dependência externa e o repositório original está arquivado; confira a página oficial de versões antes de instalar.

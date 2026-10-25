@@ -7,6 +7,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.lights.Light;
+import android.hardware.lights.LightsManager;
+import android.hardware.lights.LightsRequest;
+import android.hardware.lights.LightState;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -27,6 +31,9 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Switch;
+import android.widget.SeekBar;
+import android.app.AlertDialog;
+import android.text.InputType;
 
 import org.json.JSONException;
 import org.json.JSONArray;
@@ -44,6 +51,7 @@ import java.util.UUID;
 
 public final class MainActivity extends Activity implements InputManager.InputDeviceListener, BridgeClient.Listener {
     private static final int PORT = 47652;
+    private static final int WIFI_PORT = 47653;
     private static final long SNAPSHOT_MS = 250;
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -51,12 +59,18 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private final Map<String, String> friendlyButtons = new HashMap<>();
     private InputManager inputManager;
     private PhoneProfileStore profiles;
+    private WifiPairingStore wifiPairings;
     private BridgeClient bridge;
     private boolean sessionReady;
     private boolean refreshingUi;
     private boolean resumed;
     private boolean inputFocused = true;
     private boolean english;
+    private boolean wifiMode;
+    private boolean connectedOverWifi;
+    private String pendingPairingHost;
+    private byte[] pendingPairingKey;
+    private boolean pendingPairingWasStored;
     private String selectedControllerId;
     private String pendingButton;
     private String pendingAxis;
@@ -66,13 +80,19 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private String installId;
 
     private EditText hostAddress;
+    private EditText pairingCodeInput;
+    private Spinner transportPicker;
     private Button connectionButton;
     private TextView connectionStatus;
+    private TextView usbNote;
+    private TextView wifiNote;
     private TextView helpText;
     private TextView liveInput;
     private TextView profileSummary;
     private TextView gyroStatus;
+    private TextView lightbarStatus;
     private Switch gyroToggle;
+    private Button lightbarButton;
     private Spinner outputPicker;
     private LinearLayout mappingRows;
     private LinearLayout controllerList;
@@ -118,6 +138,11 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         final float[] accelMS2 = {0f,9.80665f,0f};
         boolean gyroSampleReceived;
         long motionTimestampNs;
+        LightsManager lightsManager;
+        Light rgbLight;
+        LightsManager.LightsSession lightSession;
+        boolean lightProbeComplete;
+        int lightbarColor = Integer.MIN_VALUE;
         Controller(InputDevice device, String profileId) {
             this.device = device;
             this.deviceId = device.getId();
@@ -160,11 +185,13 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         getWindow().getDecorView().setSystemUiVisibility(0);
         inputManager = (InputManager)getSystemService(Context.INPUT_SERVICE);
         profiles = new PhoneProfileStore(this);
+        wifiPairings = new WifiPairingStore(this);
         String savedLanguage=getSharedPreferences("controller-bridge",MODE_PRIVATE).getString("language",null);
         if(savedLanguage==null) {
             english=!"pt".equals(Locale.getDefault().getLanguage());
             getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString("language",english?"en":"pt").apply();
         } else english=!"pt".equals(savedLanguage);
+        wifiMode=getSharedPreferences("controller-bridge",MODE_PRIVATE).getBoolean("wifi_mode",false);
         installId = getSharedPreferences("controller-bridge", MODE_PRIVATE).getString("install_id", null);
         if (installId == null) {
             installId = UUID.randomUUID().toString();
@@ -207,8 +234,19 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             case "O PC encerrou antes de confirmar a conexão.": return "The PC closed the connection before confirming it.";
             case "O socket ainda não está pronto.": return "The socket is not ready yet.";
             case "Falha ao enviar dados.": return "Failed to send data.";
+            case "Falha de autenticação Wi-Fi.": return "Wi-Fi authentication failed. Check the PC code and try again.";
+            case "Envelope Wi-Fi inválido.": return "Invalid secure Wi-Fi message.";
+            case "Linha TCP acima do limite.": return "TCP message exceeds the allowed size.";
+            case "Falha ao proteger mensagem Wi-Fi.": return "Could not secure a Wi-Fi message.";
             default: return reason;
         }
+    }
+
+    private String displayHostError(JSONObject message) {
+        String code=message.optString("code","");
+        if("auth_failed".equals(code))return tr("Pareamento Wi-Fi recusado. Confira o código mostrado no PC.","Wi-Fi pairing was rejected. Check the code shown on the PC.");
+        if("output_unavailable".equals(code))return tr("O host não conseguiu criar ou atualizar o controle virtual.","The host could not create or update the virtual controller.");
+        return message.optString("message",tr("Erro de protocolo.","Protocol error."));
     }
 
     private void buildUi() {
@@ -232,8 +270,13 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         LinearLayout.LayoutParams enParams=new LinearLayout.LayoutParams(dp(48),dp(36)); enParams.leftMargin=dp(6); languageRow.addView(enButton,enParams);
         root.addView(languageRow,fullWidth());
         View.OnClickListener chooseLanguage=view->{boolean next=view==enButton; if(next==english)return; english=next;
+            String addressDraft=hostAddress==null?null:hostAddress.getText().toString();
+            String pairingDraft=pairingCodeInput==null?null:pairingCodeInput.getText().toString();
             getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString("language",english?"en":"pt").apply();
-            setupLabels(); buildUi(); renderControllerList(); renderControllerDetails(); };
+            setupLabels(); buildUi();
+            if(addressDraft!=null)hostAddress.setText(addressDraft);
+            if(pairingDraft!=null)pairingCodeInput.setText(pairingDraft);
+            updateTransportUi(); renderControllerList(); renderControllerDetails(); };
         ptButton.setOnClickListener(chooseLanguage); enButton.setOnClickListener(chooseLanguage);
 
         TextView title = text("CONTROLLER BRIDGE", 20, true);
@@ -248,27 +291,50 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         connectionStatus = text(tr("Desconectado","Disconnected"), 15, true);
         connectionStatus.setTextColor(0xffffc66d);
         connectionCard.addView(connectionStatus);
+        transportPicker=new Spinner(this);
+        ArrayAdapter<String> transportAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,
+                new String[]{tr("USB · ADB Reverse","USB · ADB Reverse"),tr("Wi-Fi · mesma rede","Wi-Fi · same network")});
+        transportAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        transportPicker.setAdapter(transportAdapter); transportPicker.setSelection(wifiMode?1:0,false);
+        connectionCard.addView(transportPicker,fullWidth());
         hostAddress = new EditText(this);
         hostAddress.setSingleLine(true);
-        hostAddress.setHint(tr("IP do PC (USB: 127.0.0.1)","PC IP (USB: 127.0.0.1)"));
+        hostAddress.setHint(tr("IP local do PC","PC local IP address"));
         hostAddress.setHintTextColor(0xff7f8d9d);
         hostAddress.setTextColor(0xffe8edf3);
         hostAddress.setTextSize(14);
         hostAddress.setPadding(dp(12), dp(7), dp(12), dp(7));
         hostAddress.setBackground(rounded(0xff18212b, 0xff334252, 8));
-        hostAddress.setText(getSharedPreferences("controller-bridge", MODE_PRIVATE).getString("host", "127.0.0.1"));
-        hostAddress.setEnabled(false);
-        hostAddress.setFocusable(false);
+        hostAddress.setText(getSharedPreferences("controller-bridge", MODE_PRIVATE).getString(wifiMode?"wifi_host":"host", wifiMode?"":"127.0.0.1"));
         connectionCard.addView(hostAddress, fullWidth());
+        pairingCodeInput=new EditText(this); pairingCodeInput.setSingleLine(true);
+        pairingCodeInput.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        pairingCodeInput.setHint(tr("Código de pareamento exibido pelo host (32 caracteres)","Pairing code shown by the host (32 characters)"));
+        pairingCodeInput.setHintTextColor(0xff7f8d9d); pairingCodeInput.setTextColor(0xffe8edf3); pairingCodeInput.setTextSize(14);
+        pairingCodeInput.setPadding(dp(12),dp(7),dp(12),dp(7)); pairingCodeInput.setBackground(rounded(0xff18212b,0xff334252,8));
+        connectionCard.addView(pairingCodeInput,fullWidth());
+        transportPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id) {
+                boolean next=position==1; if(next==wifiMode)return;
+                if(bridge!=null) { transportPicker.setSelection(wifiMode?1:0); return; }
+                String current=hostAddress.getText().toString().trim();
+                getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString(wifiMode?"wifi_host":"host",current).apply();
+                wifiMode=next; getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putBoolean("wifi_mode",wifiMode).apply();
+                hostAddress.setText(getSharedPreferences("controller-bridge",MODE_PRIVATE).getString(wifiMode?"wifi_host":"host",wifiMode?"":"127.0.0.1"));
+                updateTransportUi();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
         connectionButton = button(tr("Conectar ao PC","Connect to PC"));
         connectionButton.setBackground(rounded(0xff397cf6, 0xff397cf6, 10));
         connectionButton.setTextColor(Color.WHITE);
         connectionCard.addView(connectionButton, fullWidth());
         connectionButton.setOnClickListener(v -> toggleConnection());
-        TextView usbNote=text(tr("USB  ·  Conecte o cabo e autorize a depuração. No PC, inicie o host e configure o ADB Reverse na porta 47652.","USB  ·  Connect the cable and allow USB debugging. Start the host on your PC and configure ADB Reverse on port 47652."), 12, false);
+        usbNote=text(tr("USB · Autorize a depuração e configure `adb reverse tcp:47652 tcp:47652` no PC.","USB · Allow debugging and run `adb reverse tcp:47652 tcp:47652` on the PC."), 12, false);
         usbNote.setTextColor(0xffb4c0cd); connectionCard.addView(usbNote);
-        TextView wifiNote=text(tr("WI‑FI  ·  Indisponível nesta versão","WI‑FI  ·  Unavailable in this version"), 11, true);
-        wifiNote.setTextColor(0xffe0ad63); connectionCard.addView(wifiNote);
+        wifiNote=text(tr("Wi-Fi · Inicie o host com `--wifi`, use a mesma rede, informe o IP e o código mostrado no PC.","Wi-Fi · Start the host with `--wifi`, join the same network, and enter the PC IP and displayed code."), 11, true);
+        wifiNote.setTextColor(0xffb4c0cd); connectionCard.addView(wifiNote);
+        updateTransportUi();
 
         LinearLayout controllerCard = card(root, tr("CONTROLES CONECTADOS","CONNECTED CONTROLLERS"));
         controllerList = new LinearLayout(this);
@@ -287,8 +353,12 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         controllerCard.addView(gyroToggle,fullWidth());
         gyroStatus=text(tr("Disponível somente na saída DualShock 4.","Available only with DualShock 4 output."),11,false); gyroStatus.setTextColor(0xff8f9eae);
         controllerCard.addView(gyroStatus,fullWidth());
-        TextView lightbarNote=text(tr("Luz do controle · indisponível nesta versão","Controller lightbar · unavailable in this version"),11,false);
-        lightbarNote.setTextColor(0xff8f9eae); controllerCard.addView(lightbarNote,fullWidth());
+        lightbarStatus=text(tr("Luz RGB física indisponível neste controle.","Physical RGB light unavailable on this controller."),11,false);
+        lightbarStatus.setTextColor(0xff8f9eae); controllerCard.addView(lightbarStatus,fullWidth());
+        lightbarButton=button(tr("Escolher cor da luz","Choose light color"));
+        lightbarButton.setOnClickListener(v->{Controller current=selected(); if(current!=null) showLightbarPicker(current);});
+        controllerCard.addView(lightbarButton,fullWidth());
+        lightbarButton.setVisibility(View.GONE);
         gyroToggle.setOnCheckedChangeListener((button,checked)->{
             if(refreshingUi)return;
             Controller current=selected(); if(current==null)return;
@@ -336,7 +406,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         mappingCard.addView(mappingRows, fullWidth());
         LinearLayout noteCard=card(root,tr("DICA","TIP"));
         noteCard.addView(text(tr("Mantenha esta tela aberta durante o jogo. Se uma entrada não aparecer no teste ao vivo, ela não será enviada ao PC.","Keep this screen open while playing. Inputs that do not appear in the live test will not be sent to the PC."),12,false));
-        noteCard.addView(text(tr("O sensor de movimento pode ser usado na saída DS4 quando disponível. A luz física do controle e a conexão Wi‑Fi ainda não estão disponíveis.","Motion sensors can be forwarded to DS4 output when available. Physical controller lightbar control and Wi-Fi connection are not available yet."),11,false));
+        noteCard.addView(text(tr("O sensor de movimento pode ser usado na saída DS4. O Wi-Fi usa pareamento com código; a cor da luz só aparece quando Android expõe RGB controlável.","Motion sensors can be forwarded to DS4 output. Wi-Fi uses code-based pairing; light color appears only when Android exposes controllable RGB."),11,false));
 
         setContentView(scroll);
         updateConnectionUi();
@@ -347,17 +417,37 @@ public final class MainActivity extends Activity implements InputManager.InputDe
 
     private void updateConnectionUi() {
         if(connectionButton==null || connectionStatus==null) return;
+        updateTransportUi();
         if(bridge==null) {
             connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
             connectionStatus.setText(tr("Desconectado","Disconnected"));
         } else if(sessionReady) {
             connectionButton.setText(tr("Desconectar","Disconnect"));
-            connectionStatus.setText(tr("Conectado ao host do PC","Connected to PC host"));
+            connectionStatus.setText(connectedOverWifi?tr("Wi-Fi seguro conectado","Secure Wi-Fi connected"):tr("Conectado ao host do PC por USB","Connected to PC host over USB"));
         } else {
             connectionButton.setText(tr("Cancelar conexão","Cancel connection"));
             String host=hostAddress.getText().toString().trim();
-            connectionStatus.setText(tr("Conectando a ","Connecting to ")+host+":"+PORT+"…");
+            connectionStatus.setText(tr("Conectando a ","Connecting to ")+host+":"+(wifiMode?WIFI_PORT:PORT)+"…");
         }
+    }
+
+    private void updateTransportUi() {
+        if(hostAddress==null)return;
+        boolean editable=bridge==null && wifiMode;
+        hostAddress.setEnabled(editable); hostAddress.setFocusable(editable); hostAddress.setFocusableInTouchMode(editable);
+        hostAddress.setHint(wifiMode?tr("IP local do PC","PC local IP address"):tr("USB · 127.0.0.1","USB · 127.0.0.1"));
+        if(!wifiMode)hostAddress.setText("127.0.0.1");
+        if(pairingCodeInput!=null) {
+            pairingCodeInput.setVisibility(wifiMode?View.VISIBLE:View.GONE);
+            pairingCodeInput.setEnabled(editable); pairingCodeInput.setFocusable(editable); pairingCodeInput.setFocusableInTouchMode(editable);
+            String host=hostAddress.getText().toString().trim(); byte[] saved=host.isEmpty()?null:wifiPairings.get(host);
+            pairingCodeInput.setHint(saved==null?tr("Código de 32 caracteres exibido pelo host","32-character code shown by the host")
+                    :tr("Pareado · deixe vazio para reutilizar","Paired · leave blank to reuse"));
+            if(saved!=null)java.util.Arrays.fill(saved,(byte)0);
+        }
+        if(transportPicker!=null)transportPicker.setEnabled(bridge==null);
+        if(usbNote!=null)usbNote.setVisibility(wifiMode?View.GONE:View.VISIBLE);
+        if(wifiNote!=null)wifiNote.setVisibility(wifiMode?View.VISIBLE:View.GONE);
     }
 
     private void updatePendingInstruction() {
@@ -415,6 +505,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if (inputManager != null) inputManager.registerInputDeviceListener(this, main);
         refreshDevices();
         refreshMotionSubscriptions();
+        renderControllerDetails();
         main.removeCallbacks(periodicSnapshots);
         main.postDelayed(periodicSnapshots, SNAPSHOT_MS);
     }
@@ -425,6 +516,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         main.removeCallbacks(periodicSnapshots);
         if (inputManager != null) inputManager.unregisterInputDeviceListener(this);
         stopAllMotionSubscriptions();
+        for (Controller controller : controllers.values()) resetLightbarProbe(controller);
         disconnectGracefully(tr("App pausado; controles liberados.","App paused; controllers released."));
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         super.onPause();
@@ -445,7 +537,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         InputDevice fresh = InputDevice.getDevice(deviceId);
         Controller current = controllers.get(deviceId);
         if (fresh == null) { removeDevice(deviceId); refreshMotionSubscriptions(); return; }
-        if (current != null) current.device = fresh;
+        if (current != null) { current.device = fresh; resetLightbarProbe(current); }
         else addDevice(deviceId);
         refreshMotionSubscriptions();
         renderControllerDetails();
@@ -466,6 +558,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         String profileId = profiles.profileId(device, active);
         Controller controller = new Controller(device, profileId);
         PhoneProfileStore.CachedProfile cached = profiles.get(profileId);
+        controller.lightbarColor = profiles.getLightbarColor(profileId, Integer.MIN_VALUE);
         if (cached != null) {
             controller.mapping = decodeMapping(cached.mapping);
             controller.output = cached.output;
@@ -484,6 +577,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if (controller == null) return;
         sendNeutralAndDetach(controller);
         stopMotionSubscription(controller);
+        closeLightbarSession(controller);
         if (controller.id().equals(selectedControllerId)) selectedControllerId = controllers.isEmpty() ? null : controllers.values().iterator().next().id();
         renderControllerList();
         renderControllerDetails();
@@ -496,6 +590,87 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
     private boolean isDs4Controller(Controller controller) { return isDs4Device(controller.device); }
+
+    private void inspectLightbar(Controller controller) {
+        if (controller == null || controller.lightProbeComplete) return;
+        controller.lightProbeComplete = true;
+        controller.lightsManager = null; controller.rgbLight = null;
+        if (Build.VERSION.SDK_INT < 31 || !isDs4Controller(controller)) return;
+        try {
+            LightsManager manager = controller.device.getLightsManager();
+            for (Light light : manager.getLights()) {
+                if (light.hasRgbControl() && light.getType() == Light.LIGHT_TYPE_INPUT) {
+                    controller.lightsManager = manager; controller.rgbLight = light; break;
+                }
+            }
+            if (controller.rgbLight != null && controller.lightbarColor != Integer.MIN_VALUE)
+                applyLightbarColor(controller, controller.lightbarColor, false);
+        } catch (RuntimeException ignored) {
+            closeLightbarSession(controller);
+            controller.lightsManager = null; controller.rgbLight = null;
+        }
+    }
+
+    private boolean applyLightbarColor(Controller controller, int color, boolean persist) {
+        if (controller == null || controller.lightsManager == null || controller.rgbLight == null || Build.VERSION.SDK_INT < 31) return false;
+        try {
+            if (controller.lightSession == null) controller.lightSession = controller.lightsManager.openSession();
+            LightState state = new LightState.Builder().setColor(Color.rgb(Color.red(color), Color.green(color), Color.blue(color))).build();
+            LightsRequest request = new LightsRequest.Builder().addLight(controller.rgbLight, state).build();
+            controller.lightSession.requestLights(request);
+            controller.lightbarColor = color | 0xff000000;
+            if (persist) profiles.putLightbarColor(controller.profileId, controller.lightbarColor);
+            return true;
+        } catch (RuntimeException deniedOrUnsupported) {
+            closeLightbarSession(controller);
+            controller.lightsManager = null; controller.rgbLight = null;
+            if (lightbarStatus != null) lightbarStatus.setText(tr("Android não permitiu alterar a luz RGB.","Android did not allow changing the RGB light."));
+            if (lightbarButton != null) lightbarButton.setVisibility(View.GONE);
+            return false;
+        }
+    }
+
+    private void closeLightbarSession(Controller controller) {
+        if (controller.lightSession != null) {
+            try { controller.lightSession.close(); } catch (RuntimeException ignored) { }
+            controller.lightSession = null;
+        }
+    }
+
+    private void resetLightbarProbe(Controller controller) {
+        closeLightbarSession(controller);
+        controller.lightProbeComplete=false; controller.lightsManager=null; controller.rgbLight=null;
+    }
+
+    private void showLightbarPicker(Controller controller) {
+        if (controller.rgbLight == null) return;
+        int initial = controller.lightbarColor == Integer.MIN_VALUE ? 0xff397cf6 : controller.lightbarColor;
+        LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(22),dp(8),dp(22),dp(4));
+        View preview = new View(this); preview.setBackground(rounded(initial,initial,10));
+        LinearLayout.LayoutParams previewParams=fullWidth(); previewParams.height=dp(42); previewParams.bottomMargin=dp(12); content.addView(preview,previewParams);
+        SeekBar[] channels = new SeekBar[3];
+        int[] values={Color.red(initial),Color.green(initial),Color.blue(initial)};
+        String[] names={tr("Vermelho","Red"),tr("Verde","Green"),tr("Azul","Blue")};
+        for(int i=0;i<3;i++) {
+            TextView label=text(names[i],12,true); content.addView(label);
+            SeekBar slider=new SeekBar(this); slider.setMax(255); slider.setProgress(values[i]); channels[i]=slider;
+            content.addView(slider,fullWidth());
+        }
+        Runnable updatePreview=()->preview.setBackground(rounded(Color.rgb(channels[0].getProgress(),channels[1].getProgress(),channels[2].getProgress()),0xff394655,10));
+        for(SeekBar slider:channels) slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar,int progress,boolean fromUser) { updatePreview.run(); }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(tr("Cor da luz do controle","Controller light color"))
+                .setView(content).setNegativeButton(tr("Cancelar","Cancel"),null)
+                .setPositiveButton(tr("Aplicar","Apply"),null).create();
+        dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button->{
+            int color=Color.rgb(channels[0].getProgress(),channels[1].getProgress(),channels[2].getProgress());
+            if(applyLightbarColor(controller,color,true)) { renderControllerDetails(); dialog.dismiss(); }
+        }));
+        dialog.show();
+    }
 
     private MotionPair findMotionPair(Controller controller) {
         if(Build.VERSION.SDK_INT<31 || controller==null || !isDs4Controller(controller)) return null;
@@ -653,21 +828,48 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private void toggleConnection() {
         if (bridge != null) { disconnectGracefully(tr("Desconectado pelo usuário.","Disconnected by user.")); return; }
         reconcilePendingProfiles();
-        String host = hostAddress.getText().toString().trim();
-        if (host.isEmpty()) { hostAddress.setError(tr("Informe o IP do PC.","Enter the PC IP address.")); return; }
-        getSharedPreferences("controller-bridge", MODE_PRIVATE).edit().putString("host", host).apply();
-        connectionStatus.setText(tr("Conectando a ","Connecting to ") + host + ":" + PORT + "…");
+        String host = wifiMode?hostAddress.getText().toString().trim():"127.0.0.1";
+        if (host.isEmpty()) { hostAddress.setError(tr("Informe o IP local do PC.","Enter the PC local IP address.")); return; }
+        int port=wifiMode?WIFI_PORT:PORT;
+        getSharedPreferences("controller-bridge", MODE_PRIVATE).edit().putString(wifiMode?"wifi_host":"host", host).apply();
+        byte[] pairingKey=null;
+        if(wifiMode) {
+            String typed=pairingCodeInput.getText().toString().trim();
+            pendingPairingWasStored=typed.isEmpty();
+            try { pairingKey=pendingPairingWasStored?wifiPairings.get(host):WifiSecureChannel.parsePairingCode(typed); }
+            catch(IllegalArgumentException invalid) { pairingCodeInput.setError(tr("Código inválido. Use 32 caracteres hexadecimais.","Invalid code. Enter 32 hexadecimal characters.")); return; }
+            if(pairingKey==null) { pairingCodeInput.setError(tr("Informe o código exibido pelo host.","Enter the code shown by the host.")); return; }
+            pendingPairingHost=host; pendingPairingKey=pairingKey.clone();
+        } else clearPendingPairing();
+        connectedOverWifi=wifiMode;
+        connectionStatus.setText(wifiMode?tr("Autenticando Wi-Fi com ","Authenticating Wi-Fi with ")+host+":"+port+"…"
+                :tr("Conectando por USB a ","Connecting over USB to ")+host+":"+port+"…");
         connectionButton.setText(tr("Cancelar conexão","Cancel connection"));
         bridge = new BridgeClient(this);
         sessionReady = false;
-        bridge.connect(host, PORT, installId);
+        updateTransportUi();
+        bridge.connect(host, port, installId, pairingKey);
+    }
+
+    private void clearPendingPairing() {
+        if(pendingPairingKey!=null)java.util.Arrays.fill(pendingPairingKey,(byte)0);
+        pendingPairingKey=null; pendingPairingHost=null; pendingPairingWasStored=false;
     }
 
     @Override public void onConnected(BridgeClient source) {
         if (bridge != source) return;
         sessionReady = true;
-        connectionStatus.setText(tr("Conectado ao host do PC","Connected to PC host"));
+        boolean pairStorageFailed=false;
+        if(connectedOverWifi && pendingPairingHost!=null && pendingPairingKey!=null) {
+            try { wifiPairings.put(pendingPairingHost,pendingPairingKey); }
+            catch(Exception storageError) { pairStorageFailed=true; }
+        }
+        if(pairingCodeInput!=null)pairingCodeInput.setText("");
+        clearPendingPairing();
+        connectionStatus.setText(pairStorageFailed?tr("Wi-Fi autenticado; não foi possível salvar o pareamento.","Wi-Fi authenticated; pairing could not be saved.")
+                :connectedOverWifi?tr("Wi-Fi seguro conectado","Secure Wi-Fi connected"):tr("Conectado ao host do PC por USB","Connected to PC host over USB"));
         connectionButton.setText(tr("Desconectar","Disconnect"));
+        updateTransportUi();
         for (Controller controller : controllers.values()) attach(controller);
     }
 
@@ -730,8 +932,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
                 connectionStatus.setText(tr("Conectado ao host do PC · RTT local ","Connected to PC host · local RTT ") + rtt + " ms");
             }
         } else if ("error".equals(type)) {
-            String readable = message.optString("message", tr("Erro de protocolo.","Protocol error."));
-            connectionStatus.setText(readable);
+            connectionStatus.setText(displayHostError(message));
             if (controller != null) { reconcilePendingProfile(controller);
                 if (message.optString("code", "").equals("output_unavailable")) controller.profileReady = false; }
         }
@@ -739,13 +940,17 @@ public final class MainActivity extends Activity implements InputManager.InputDe
 
     @Override public void onDisconnected(BridgeClient source, String reason) {
         if (bridge != source) return;
+        if(pendingPairingWasStored && pendingPairingHost!=null && "Falha de autenticação Wi-Fi.".equals(reason)) wifiPairings.remove(pendingPairingHost);
+        clearPendingPairing();
         reconcilePendingProfiles();
         bridge = null;
         sessionReady = false;
+        connectedOverWifi=false;
         for (Controller controller : controllers.values()) { controller.attached = false; controller.profileReady = false; clearInput(controller, false); }
         refreshMotionSubscriptions();
         connectionStatus.setText(tr("Desconectado: ","Disconnected: ") + displayReason(reason));
         connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
+        updateTransportUi();
         renderControllerDetails();
     }
 
@@ -876,9 +1081,12 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         reconcilePendingProfiles();
         bridge = null;
         sessionReady = false;
+        clearPendingPairing();
+        connectedOverWifi=false;
         connectionStatus.setText(status);
         connectionButton.setText(tr("Conectar ao PC","Connect to PC"));
         old.closeAfterFlush();
+        updateTransportUi();
         renderControllerDetails();
     }
 
@@ -957,6 +1165,31 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         Controller controller = selected();
         refreshingUi = true;
         if (outputPicker != null) { outputPicker.setEnabled(controller != null); outputPicker.setSelection(controller != null && controller.output.equals("ds4") ? 1 : 0); }
+        inspectLightbar(controller);
+        if(lightbarStatus!=null && lightbarButton!=null) {
+            if(controller==null) {
+                lightbarStatus.setText(tr("Conecte um controle DS4 para verificar a luz RGB.","Connect a DS4 controller to check for an RGB light."));
+                lightbarButton.setVisibility(View.GONE);
+            } else if(Build.VERSION.SDK_INT<31) {
+                lightbarStatus.setText(tr("Luz RGB requer Android 12 ou superior.","RGB lights require Android 12 or later."));
+                lightbarButton.setVisibility(View.GONE);
+            } else if(!isDs4Controller(controller)) {
+                lightbarStatus.setText(tr("A luz RGB só é configurável no controle DS4.","RGB light settings are only available for a DS4 controller."));
+                lightbarButton.setVisibility(View.GONE);
+            } else if(controller.rgbLight==null) {
+                lightbarStatus.setText(tr("Android não expõe uma luz RGB controlável neste DS4.","Android does not expose a controllable RGB light on this DS4."));
+                lightbarButton.setVisibility(View.GONE);
+            } else {
+                lightbarStatus.setText(controller.lightbarColor==Integer.MIN_VALUE
+                        ?tr("Luz RGB controlável detectada.","Controllable RGB light detected.")
+                        :tr("Cor salva: ","Saved color: ")+String.format(Locale.ROOT,"#%06X",controller.lightbarColor&0xffffff));
+                lightbarButton.setVisibility(View.VISIBLE);
+                lightbarButton.setText(controller.lightbarColor==Integer.MIN_VALUE
+                        ?tr("Escolher cor da luz","Choose light color")
+                        :tr("Alterar cor da luz","Change light color"));
+                lightbarButton.setBackground(rounded(controller.lightbarColor==Integer.MIN_VALUE?0xff2b3744:controller.lightbarColor,0xff3a4a5a,9));
+            }
+        }
         MotionPair motionPair=controller==null?null:findMotionPair(controller);
         if(controller!=null) updateMotionSubscription(controller,motionPair);
         if(gyroToggle!=null) {
@@ -1077,3 +1310,4 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
 }
+

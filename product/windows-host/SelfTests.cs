@@ -27,6 +27,7 @@ public static class SelfTests
             await TestPingCoalescingAndQueueAgeAsync(Path.Combine(temporary, "aged-profiles"));
             await TestTcpAsync(Path.Combine(temporary, "tcp-profiles"));
             await TestLineLimitAsync();
+            _assertions += await WifiSelfTests.RunAsync(Path.Combine(temporary, "wifi"));
             Console.WriteLine($"PASS: {_assertions} verificações de estado, perfis, saídas, enquadramento TCP e liberação de comandos.");
             return 0;
         }
@@ -386,3 +387,4 @@ public static class SelfTests
         public bool WaitForNewSlot(uint previousMask, TimeSpan timeout) => newSlot;
     }
 }
+

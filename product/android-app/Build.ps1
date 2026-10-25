@@ -41,11 +41,15 @@ try {
     $lifecycleSource = Join-Path $projectRoot 'app\src\main\java\com\controllerbridge\app\BridgeLifecycle.java'
     $inputFilterSource = Join-Path $projectRoot 'app\src\main\java\com\controllerbridge\app\ControllerInputFilter.java'
     $motionMatcherSource = Join-Path $projectRoot 'app\src\main\java\com\controllerbridge\app\MotionDeviceMatcher.java'
+    $wifiSecureSource = Join-Path $projectRoot 'app\src\main\java\com\controllerbridge\app\WifiSecureChannel.java'
     $testSource = Join-Path $projectRoot 'app\src\test\java\com\controllerbridge\app\MappingModelSelfTest.java'
-    & $javacExe -encoding UTF-8 -d $testOutput $mappingSource $allocatorSource $lifecycleSource $inputFilterSource $motionMatcherSource $testSource
+    $wifiTestSource = Join-Path $projectRoot 'app\src\test\java\com\controllerbridge\app\WifiSecureChannelSelfTest.java'
+    & $javacExe -encoding UTF-8 -d $testOutput $mappingSource $allocatorSource $lifecycleSource $inputFilterSource $motionMatcherSource $wifiSecureSource $testSource $wifiTestSource
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar as verificações de mapeamento.' }
     & $javaExe -cp $testOutput com.controllerbridge.app.MappingModelSelfTest
     if ($LASTEXITCODE -ne 0) { throw 'As verificações de mapeamento falharam.' }
+    & $javaExe -cp $testOutput com.controllerbridge.app.WifiSecureChannelSelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'As verificações do canal Wi-Fi falharam.' }
 
     $apk = Join-Path $projectRoot 'app\build\outputs\apk\debug\app-debug.apk'
     if (-not (Test-Path -LiteralPath $apk)) { throw 'O APK não foi gerado.' }
@@ -57,3 +61,4 @@ try {
 } finally {
     Pop-Location
 }
+
