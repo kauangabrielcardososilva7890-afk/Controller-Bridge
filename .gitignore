@@ -6,6 +6,7 @@
 product/android-app/.android-user/
 product/android-app/dist/
 product/windows-host/.tooling/
+**/artifacts/
 
 # Local work notes and temporary output
 work/
@@ -13,3 +14,4 @@ outputs/
 .vs/
 *.user
 *.suo
+
