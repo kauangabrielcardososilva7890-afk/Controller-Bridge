@@ -6,7 +6,7 @@ Android client that forwards Bluetooth controllers recognized by the phone to th
 
 ## Install and connect
 
-Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`; **EN** installs as `com.controllerbridge.app.en`, so both can be installed together. Each starts in its named language, and the PT/EN selector can still switch languages inside either app.
+Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`; **EN** installs as `com.controllerbridge.app.en`, so both can be installed together. Each starts and stays in its named language.
 
 1. Pair the controller with Android in the system Bluetooth settings.
 2. Install/start the Controller Bridge Windows host and its required virtual controller driver on the PC.
@@ -14,7 +14,7 @@ Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`;
    - **USB:** connect the phone to the PC, unlock it, allow USB debugging, then run `adb reverse tcp:47652 tcp:47652` on the PC for that cable connection. Keep `127.0.0.1` as the host address.
    - **Wi-Fi:** start the Windows host with `--wifi`, connect phone and PC to the same LAN, enter the PC's LAN IP and the 32-character pairing code shown by the host. The app pairs each PC once and saves the pairing key encrypted with Android Keystore. Wi-Fi uses authenticated AES-GCM messages on port 47653; USB stays on local port 47652. The host does not add firewall rules automatically.
 4. Tap **Connect to PC** and keep the app screen open while playing. Select Xbox 360 or DualShock 4 output. The app starts with Android's standard layout. Tap **Map** to change one button, or invert/remap/calibrate an axis.
-5. The app language can be switched with **PT/EN** without disconnecting the host.
+5. The two app variants keep their own fixed language.
 
 ## DS4 motion and light
 
@@ -49,7 +49,7 @@ Cliente Android que encaminha ao host Windows os controles Bluetooth reconhecido
 
 ## Instalar e conectar
 
-Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **EN** instala como `com.controllerbridge.app.en`, então as duas podem ficar instaladas juntas. Cada uma inicia no idioma indicado no nome, e o seletor PT/EN continua permitindo trocar o idioma dentro de qualquer versão.
+Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **EN** instala como `com.controllerbridge.app.en`, então as duas podem ficar instaladas juntas. Cada versão abre e permanece no idioma indicado no nome.
 
 1. Pareie o controle com o Android nas configurações Bluetooth do sistema.
 2. Instale/inicie no PC Windows o host Controller Bridge e o driver de controle virtual exigido por ele.
@@ -57,7 +57,7 @@ Há duas versões do APK. **PT-BR** instala como `com.controllerbridge.app`; **E
    - **USB:** conecte o celular ao PC, desbloqueie-o e autorize a depuração USB. A cada conexão do cabo, execute `adb reverse tcp:47652 tcp:47652` no PC. Mantenha o endereço do host como `127.0.0.1`.
    - **Wi-Fi:** inicie o host Windows com `--wifi`, conecte celular e PC à mesma rede local e informe o IP local do PC e o código de pareamento de 32 caracteres mostrado pelo host. O pareamento é salvo por PC com a chave cifrada pelo Android Keystore. Wi-Fi usa mensagens autenticadas AES-GCM na porta 47653; USB continua na porta local 47652. O host não configura regras de firewall automaticamente.
 4. Toque em **Conectar ao PC** e deixe a tela do app aberta durante o jogo. Escolha a saída Xbox 360 ou DualShock 4. O app começa com o layout padrão do Android. Toque em **Mapear** para mudar um botão, ou inverta/remapeie/calibre um eixo.
-5. O idioma pode ser trocado em **PT/EN** sem desconectar o host.
+5. Cada variante mantém seu idioma fixo.
 
 ## Movimento e luz do DS4
 
@@ -81,6 +81,7 @@ O script compila as duas versões offline, executa verificações focadas de map
 - Entrada física, giroscópio, disponibilidade da luz RGB, tela sempre ligada e encaminhamento para jogos ainda precisam ser verificados no celular e controle reais.
 - Alguns controles paralelos podem não expor todos os botões/eixos ao Android; essas entradas podem ser remapeadas quando o Android as reconhece.
 - Wi-Fi exige iniciar o host do PC com `--wifi`, usar o IP local e informar o código exibido pelo host. O app não cria regras de roteador ou firewall.
+
 
 
 
