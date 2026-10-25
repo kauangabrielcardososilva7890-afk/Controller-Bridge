@@ -74,6 +74,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private String selectedControllerId;
     private String pendingButton;
     private String pendingAxis;
+    private final Map<Integer, Float> axisCaptureBaseline = new HashMap<>();
     private long pingSequence;
     private long snapshotTicks;
     private final Map<Long, Long> pingTimes = new HashMap<>();
@@ -97,6 +98,26 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private LinearLayout mappingRows;
     private LinearLayout controllerList;
     private ArrayAdapter<String> outputAdapter;
+    private final List<View> workspacePages = new ArrayList<>();
+    private final List<Button> workspaceTabs = new ArrayList<>();
+    private final Set<String> expandedMappingGroups = new HashSet<>();
+    private ControllerPreview controllerPreview;
+    private TextView controllerCount;
+    private TextView liveControllerName;
+    private Button resetMappingButton;
+    private Button calibrateButton;
+    private Button cancelCaptureButton;
+    private TextView hostLabel;
+    private TextView pairingLabel;
+    private int activeWorkspace;
+
+    private static final int BG = 0xff141819;
+    private static final int SURFACE = 0xff1d2224;
+    private static final int INSET = 0xff171c1e;
+    private static final int BORDER = 0xff353d40;
+    private static final int ACCENT = 0xff52d8e8;
+    private static final int INK = 0xffedf2f3;
+    private static final int MUTED = 0xffa1adb2;
 
     private final Runnable periodicSnapshots = new Runnable() {
         @Override public void run() {
@@ -181,8 +202,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(0xff11161d);
-        getWindow().setNavigationBarColor(0xff0c1016);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(0);
         inputManager = (InputManager)getSystemService(Context.INPUT_SERVICE);
         profiles = new PhoneProfileStore(this);
@@ -204,6 +225,24 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
     private String tr(String portuguese,String englishText) { return english?englishText:portuguese; }
+    private String displayButtonLabel(String logical) {
+        Controller controller = selected();
+        boolean ds4 = controller != null && controller.output.equals("ds4");
+        switch (logical) {
+            case "south": return ds4 ? tr("Cruz  ×", "Cross  ×") : "A";
+            case "east": return ds4 ? tr("Círculo  ○", "Circle  ○") : "B";
+            case "west": return ds4 ? tr("Quadrado  □", "Square  □") : "X";
+            case "north": return ds4 ? tr("Triângulo  △", "Triangle  △") : "Y";
+            case "l1": return ds4 ? "L1" : "LB";
+            case "r1": return ds4 ? "R1" : "RB";
+            case "l2": return ds4 ? "L2" : "LT";
+            case "r2": return ds4 ? "R2" : "RT";
+            case "share": return ds4 ? "Share" : "View";
+            case "options": return ds4 ? "Options" : "Menu";
+            case "ps": return ds4 ? "PS" : tr("Guia", "Guide");
+            default: return friendlyButtons.get(logical);
+        }
+    }
     private String trAxisLabel(String axis) {
         switch(axis) {
             case "lx": return tr("Analógico esquerdo X","Left stick X");
@@ -247,147 +286,262 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
     private void buildUi() {
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(0xff11161d);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(14), dp(10), dp(14), dp(18));
-        root.setBackgroundColor(0xff11161d);
-        scroll.addView(root);
+        LinearLayout shell = new LinearLayout(this);
+        shell.setOrientation(LinearLayout.VERTICAL);
+        shell.setBackgroundColor(BG);
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(20), dp(18), dp(20), dp(14));
+        TextView brand = text("CB", 17, true);
+        brand.setGravity(Gravity.CENTER);
+        brand.setTextColor(ACCENT);
+        brand.setBackground(rounded(0xff213238, 0xff39565d, 13));
+        header.addView(brand, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        LinearLayout wordmark = new LinearLayout(this);
+        wordmark.setOrientation(LinearLayout.VERTICAL);
+        wordmark.setPadding(dp(12), 0, 0, 0);
+        TextView title = text("Controller Bridge", 20, true);
+        title.setPadding(0, 0, 0, dp(2));
+        wordmark.addView(title);
+        TextView subtitle = text(tr("SEU CONTROLE. NO PC.", "YOUR CONTROLLER. ON PC."), 10, true);
+        subtitle.setLetterSpacing(.12f); subtitle.setTextColor(MUTED);
+        subtitle.setPadding(0, 0, 0, 0); wordmark.addView(subtitle);
+        header.addView(wordmark, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        shell.addView(header, fullWidth());
 
-        TextView title = text("CONTROLLER BRIDGE", 20, true);
-        title.setTextColor(0xfff2f6fb);
-        title.setLetterSpacing(.04f);
-        root.addView(title);
-        TextView subtitle=text(tr("CONTROLE BLUETOOTH  ·  ANDROID → WINDOWS","BLUETOOTH CONTROLLER  ·  ANDROID → WINDOWS"), 11, true);
-        subtitle.setTextColor(0xff8292a4);
-        root.addView(subtitle);
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setPadding(dp(16), 0, dp(16), dp(12));
+        String[] tabLabels = {tr("Conexão", "Connection"), tr("Controles", "Controllers"), tr("Ao vivo", "Live input")};
+        for (int i = 0; i < tabLabels.length; i++) {
+            final int page = i;
+            Button tab = button(tabLabels[i]);
+            tab.setTextSize(12); tab.setSingleLine(true);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+            if (i > 0) params.leftMargin = dp(6);
+            tabs.addView(tab, params); workspaceTabs.add(tab);
+            tab.setOnClickListener(v -> showWorkspace(page));
+        }
+        shell.addView(tabs, fullWidth());
+        View divider = new View(this); divider.setBackgroundColor(BORDER);
+        shell.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+        android.widget.FrameLayout workspace = new android.widget.FrameLayout(this);
+        shell.addView(workspace, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout connectionRoot = workspacePage(workspace);
+        LinearLayout controlsRoot = workspacePage(workspace);
+        LinearLayout liveRoot = workspacePage(workspace);
 
-        LinearLayout connectionCard = card(root, tr("CONEXÃO COM O PC","PC CONNECTION"));
-        LinearLayout connectionHead=new LinearLayout(this); connectionHead.setOrientation(LinearLayout.HORIZONTAL); connectionHead.setGravity(Gravity.CENTER_VERTICAL);
-        connectionStatus = text(tr("Desconectado","Disconnected"), 13, true);
-        connectionStatus.setTextColor(0xffffc66d);
-        connectionStatus.setMaxLines(2);
-        connectionHead.addView(connectionStatus,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f));
-        connectionButton = button(tr("Conectar","Connect"));
-        connectionButton.setBackground(rounded(0xff397cf6, 0xff397cf6, 10));
-        connectionButton.setTextColor(Color.WHITE);
-        connectionHead.addView(connectionButton,new LinearLayout.LayoutParams(dp(140),dp(42)));
-        connectionCard.addView(connectionHead,fullWidth());
+        pageIntro(connectionRoot, tr("Conecte ao seu PC", "Connect to your PC"),
+                tr("Escolha como o celular vai transmitir seus controles.", "Choose how your phone sends your controllers to Windows."));
+        LinearLayout connectionCard = card(connectionRoot, tr("CONEXÃO COM O PC", "PC CONNECTION"));
+        connectionStatus = text(tr("Desconectado", "Disconnected"), 16, true);
+        connectionStatus.setTextColor(INK); connectionStatus.setMinHeight(dp(48));
+        connectionStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        connectionCard.addView(connectionStatus, fullWidth());
+        fieldLabel(connectionCard, tr("Transporte", "Transport"));
+        transportPicker = new Spinner(this);
+        transportPicker.setAdapter(pickerAdapter(new String[]{tr("USB · cabo", "USB · cable"), tr("Wi-Fi · mesma rede", "Wi-Fi · same network")}));
+        stylePicker(transportPicker); transportPicker.setSelection(wifiMode ? 1 : 0, false);
+        connectionCard.addView(transportPicker, spaced());
+        hostLabel = fieldLabel(connectionCard, tr("Endereço do PC", "PC address"));
+        hostAddress = input(tr("IP local do PC", "PC local IP address"));
+        hostAddress.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        hostAddress.setText(getSharedPreferences("controller-bridge", MODE_PRIVATE).getString(wifiMode ? "wifi_host" : "host", wifiMode ? "" : "127.0.0.1"));
+        connectionCard.addView(hostAddress, spaced());
+        pairingLabel = fieldLabel(connectionCard, tr("Código de pareamento", "Pairing code"));
+        pairingCodeInput = input(tr("Código exibido no PC", "Code shown on your PC"));
+        pairingCodeInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        connectionCard.addView(pairingCodeInput, spaced());
+        usbNote = text(tr("1. Conecte o cabo USB e autorize a depuração.\n2. Abra o app do PC e escolha USB.", "1. Connect your USB cable and allow debugging.\n2. Open the PC app and choose USB."), 13, false);
+        wifiNote = text(tr("1. Coloque o celular e o PC na mesma rede.\n2. Abra o app do PC, escolha Wi-Fi e copie o código.", "1. Put your phone and PC on the same network.\n2. Open the PC app, choose Wi-Fi and copy its code."), 13, false);
+        usbNote.setTextColor(MUTED); wifiNote.setTextColor(MUTED);
+        usbNote.setLineSpacing(dp(5), 1); wifiNote.setLineSpacing(dp(5), 1);
+        connectionCard.addView(usbNote, spaced()); connectionCard.addView(wifiNote, spaced());
+        connectionButton = button(tr("Conectar", "Connect"));
+        primary(connectionButton); connectionCard.addView(connectionButton, spaced());
         connectionButton.setOnClickListener(v -> toggleConnection());
-        transportPicker=new Spinner(this);
-        ArrayAdapter<String> transportAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,
-                new String[]{tr("USB · ADB Reverse","USB · ADB Reverse"),tr("Wi-Fi · mesma rede","Wi-Fi · same network")});
-        transportAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        transportPicker.setAdapter(transportAdapter); transportPicker.setSelection(wifiMode?1:0,false);
-        connectionCard.addView(transportPicker,fullWidth());
-        hostAddress = new EditText(this);
-        hostAddress.setSingleLine(true);
-        hostAddress.setHint(tr("IP local do PC","PC local IP address"));
-        hostAddress.setHintTextColor(0xff7f8d9d);
-        hostAddress.setTextColor(0xffe8edf3);
-        hostAddress.setTextSize(14);
-        hostAddress.setPadding(dp(12), dp(7), dp(12), dp(7));
-        hostAddress.setBackground(rounded(0xff18212b, 0xff334252, 8));
-        hostAddress.setText(getSharedPreferences("controller-bridge", MODE_PRIVATE).getString(wifiMode?"wifi_host":"host", wifiMode?"":"127.0.0.1"));
-        connectionCard.addView(hostAddress, fullWidth());
-        pairingCodeInput=new EditText(this); pairingCodeInput.setSingleLine(true);
-        pairingCodeInput.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        pairingCodeInput.setHint(tr("Código de pareamento exibido pelo host (32 caracteres)","Pairing code shown by the host (32 characters)"));
-        pairingCodeInput.setHintTextColor(0xff7f8d9d); pairingCodeInput.setTextColor(0xffe8edf3); pairingCodeInput.setTextSize(14);
-        pairingCodeInput.setPadding(dp(12),dp(7),dp(12),dp(7)); pairingCodeInput.setBackground(rounded(0xff18212b,0xff334252,8));
-        connectionCard.addView(pairingCodeInput,fullWidth());
         transportPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id) {
-                boolean next=position==1; if(next==wifiMode)return;
-                if(bridge!=null) { transportPicker.setSelection(wifiMode?1:0); return; }
-                String current=hostAddress.getText().toString().trim();
-                getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putString(wifiMode?"wifi_host":"host",current).apply();
-                wifiMode=next; getSharedPreferences("controller-bridge",MODE_PRIVATE).edit().putBoolean("wifi_mode",wifiMode).apply();
-                hostAddress.setText(getSharedPreferences("controller-bridge",MODE_PRIVATE).getString(wifiMode?"wifi_host":"host",wifiMode?"":"127.0.0.1"));
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                boolean next = position == 1; if (next == wifiMode) return;
+                if (bridge != null) { transportPicker.setSelection(wifiMode ? 1 : 0); return; }
+                String current = hostAddress.getText().toString().trim();
+                getSharedPreferences("controller-bridge", MODE_PRIVATE).edit().putString(wifiMode ? "wifi_host" : "host", current).apply();
+                wifiMode = next; getSharedPreferences("controller-bridge", MODE_PRIVATE).edit().putBoolean("wifi_mode", wifiMode).apply();
+                hostAddress.setText(getSharedPreferences("controller-bridge", MODE_PRIVATE).getString(wifiMode ? "wifi_host" : "host", wifiMode ? "" : "127.0.0.1"));
                 updateTransportUi();
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
-        usbNote=text(tr("USB · Conecte o cabo, autorize a depuração e escolha USB ao abrir o app no PC.","USB · Connect the cable, allow debugging, and choose USB when opening the PC app."), 10, false);
-        usbNote.setTextColor(0xffb4c0cd); connectionCard.addView(usbNote);
-        wifiNote=text(tr("Wi-Fi · Mesma rede, escolha Wi-Fi ao abrir o app no PC e informe o código exibido.","Wi-Fi · Same network, choose Wi-Fi when opening the PC app and enter its pairing code."), 10, false);
-        wifiNote.setTextColor(0xffb4c0cd); connectionCard.addView(wifiNote);
-        updateTransportUi();
+        LinearLayout connectionHint = card(connectionRoot, tr("PRONTO PARA JOGAR", "READY TO PLAY"));
+        TextView hint = text(tr("Pareie o controle nas configurações Bluetooth do Android. Cada controle tem seu próprio perfil e sua própria saída no PC.", "Pair your controller in Android Bluetooth settings. Each controller has its own profile and PC output."), 14, false);
+        hint.setTextColor(MUTED); hint.setLineSpacing(dp(3), 1); connectionHint.addView(hint);
 
-        LinearLayout controllerCard = card(root, tr("CONTROLES CONECTADOS","CONNECTED CONTROLLERS"));
-        controllerList = new LinearLayout(this);
-        controllerList.setOrientation(LinearLayout.VERTICAL);
-        controllerCard.addView(controllerList, fullWidth());
-        LinearLayout profileCard = card(root, tr("PERFIL SELECIONADO","SELECTED PROFILE"));
-        profileSummary = text(tr("Selecione um controle para configurar.","Select a controller to configure."),13,false);
-        profileSummary.setTextColor(0xff8f9eae); profileCard.addView(profileSummary);
-        TextView outputLabel=text(tr("SAÍDA DO PC","PC OUTPUT"),10,true); outputLabel.setTextColor(0xff8494a6);
-        outputLabel.setPadding(0,dp(8),0,0); profileCard.addView(outputLabel);
+        pageIntro(controlsRoot, tr("Seus controles", "Your controllers"),
+                tr("Escolha um jogador e ajuste seu perfil.", "Choose a player and fine-tune their profile."));
+        controllerCount = fieldLabel(controlsRoot, tr("CONTROLES CONECTADOS", "CONNECTED CONTROLLERS"));
+        android.widget.HorizontalScrollView players = new android.widget.HorizontalScrollView(this);
+        players.setHorizontalScrollBarEnabled(false); players.setClipToPadding(false);
+        controllerList = new LinearLayout(this); controllerList.setOrientation(LinearLayout.HORIZONTAL);
+        players.addView(controllerList); controlsRoot.addView(players, spaced());
+        LinearLayout profileCard = card(controlsRoot, tr("PERFIL DO JOGADOR", "PLAYER PROFILE"));
+        profileSummary = text(tr("Selecione um controle para configurar.", "Select a controller to configure."), 17, true);
+        profileCard.addView(profileSummary, fullWidth());
+        TextView outputLabel = fieldLabel(profileCard, tr("Saída virtual no PC", "Virtual output on PC"));
+        outputLabel.setPadding(0, dp(14), 0, dp(6));
         outputPicker = new Spinner(this);
-        outputAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new String[]{"Xbox 360 (XInput)", "DualShock 4"});
-        outputAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        outputPicker.setAdapter(outputAdapter);
-        profileCard.addView(outputPicker, fullWidth());
-        gyroToggle = new Switch(this);
-        gyroToggle.setText(tr("Giroscópio do DS4","DS4 gyro")); gyroToggle.setTextSize(14); gyroToggle.setTextColor(0xffe5ebf2);
-        gyroToggle.setPadding(0,dp(8),0,dp(2));
-        profileCard.addView(gyroToggle,fullWidth());
-        gyroStatus=text(tr("Disponível somente na saída DualShock 4.","Available only with DualShock 4 output."),11,false); gyroStatus.setTextColor(0xff8f9eae);
-        profileCard.addView(gyroStatus,fullWidth());
-        lightbarStatus=text(tr("Luz RGB física indisponível neste controle.","Physical RGB light unavailable on this controller."),11,false);
-        lightbarStatus.setTextColor(0xff8f9eae); profileCard.addView(lightbarStatus,fullWidth());
-        lightbarButton=button(tr("Escolher cor da luz","Choose light color"));
-        lightbarButton.setOnClickListener(v->{Controller current=selected(); if(current!=null) showLightbarPicker(current);});
-        profileCard.addView(lightbarButton,fullWidth());
-        lightbarButton.setVisibility(View.GONE);
-        gyroToggle.setOnCheckedChangeListener((button,checked)->{
-            if(refreshingUi)return;
-            Controller current=selected(); if(current==null)return;
-            if(!current.output.equals("ds4") || (checked && findMotionPair(current)==null)) { renderControllerDetails(); return; }
-            current.gyroEnabled=checked;
-            refreshMotionSubscriptions(); persistAndSendProfile(current); renderControllerDetails();
-        });
+        outputAdapter = pickerAdapter(new String[]{"Xbox 360 · XInput", "DualShock 4"});
+        outputPicker.setAdapter(outputAdapter); stylePicker(outputPicker);
+        profileCard.addView(outputPicker, spaced());
+        TextView savedNote = text(tr("Alterações salvas automaticamente para este controle.", "Changes are saved automatically for this controller."), 12, false);
+        savedNote.setTextColor(MUTED); profileCard.addView(savedNote);
         outputPicker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
                 if (refreshingUi) return;
-                Controller current = selected();
-                if (current == null) return;
+                Controller current = selected(); if (current == null) return;
                 String output = position == 1 ? "ds4" : "xbox360";
                 if (!current.output.equals(output)) {
                     current.output = output;
-                    if (!output.equals("ds4")) current.gyroEnabled=false;
+                    if (!output.equals("ds4")) current.gyroEnabled = false;
                     refreshMotionSubscriptions(); persistAndSendProfile(current); renderControllerDetails();
                 }
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
-        LinearLayout liveCard = card(root, tr("ENTRADA AO VIVO","LIVE INPUT"));
-        liveInput = text(tr("Conecte um controle Bluetooth ao celular.","Connect a Bluetooth controller to your phone."), 14, false);
-        liveInput.setPadding(dp(12), dp(10), dp(12), dp(10));
-        liveInput.setTypeface(android.graphics.Typeface.MONOSPACE);
-        liveInput.setBackground(rounded(0xff18212b, 0xff2b3744, 8));
-        liveCard.addView(liveInput, fullWidth());
 
-        LinearLayout mappingCard = card(root, tr("MAPEAMENTO","MAPPING"));
-        helpText = text(tr("O app usa o layout padrão Android. Toque em Mapear e pressione o novo botão no controle.","The app starts with Android's standard layout. Tap Map and press the replacement controller button."), 13, false);
-        helpText.setTextColor(0xffa7b5c3);
-        mappingCard.addView(helpText);
-        Button reset = button(tr("Restaurar padrão","Restore defaults"));
-        mappingCard.addView(reset, fullWidth());
-        reset.setOnClickListener(v -> resetSelectedMapping());
-        Button calibrate = button(tr("Aplicar calibração do controle","Apply controller calibration"));
-        mappingCard.addView(calibrate, fullWidth());
-        calibrate.setOnClickListener(v -> calibrateSelectedAxes());
-        mappingRows = new LinearLayout(this);
-        mappingRows.setOrientation(LinearLayout.VERTICAL);
-        mappingCard.addView(mappingRows, fullWidth());
-        setContentView(scroll);
-        updateConnectionUi();
-        updatePendingInstruction();
-        renderControllerList();
-        renderControllerDetails();
+        LinearLayout mappingCard = card(controlsRoot, tr("MAPEAMENTO", "MAPPING"));
+        helpText = text(tr("Abra um grupo, toque em Mapear e pressione o botão no controle.", "Open a group, tap Map, then press the button on your controller."), 13, false);
+        helpText.setTextColor(MUTED); helpText.setLineSpacing(dp(3), 1);
+        helpText.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        mappingCard.addView(helpText, fullWidth());
+        cancelCaptureButton = button(tr("Cancelar captura", "Cancel capture"));
+        cancelCaptureButton.setVisibility(View.GONE);
+        cancelCaptureButton.setOnClickListener(v -> {
+            pendingButton = null; pendingAxis = null; axisCaptureBaseline.clear();
+            helpText.setText(tr("Captura cancelada. Escolha um mapeamento para editar.", "Capture canceled. Choose a mapping to edit."));
+            renderMappingRows(selected()); updatePendingInstruction();
+        });
+        mappingCard.addView(cancelCaptureButton, spaced());
+        mappingRows = new LinearLayout(this); mappingRows.setOrientation(LinearLayout.VERTICAL);
+        mappingCard.addView(mappingRows, spaced());
+        calibrateButton = button(tr("Aplicar calibração do controle", "Apply controller calibration"));
+        calibrateButton.setOnClickListener(v -> calibrateSelectedAxes()); mappingCard.addView(calibrateButton, spaced());
+        resetMappingButton = button(tr("Restaurar mapeamento padrão", "Restore default mapping"));
+        resetMappingButton.setOnClickListener(v -> resetSelectedMapping()); mappingCard.addView(resetMappingButton, spaced());
+
+        LinearLayout sensorCard = card(controlsRoot, tr("MOVIMENTO E LUZ", "MOTION & LIGHT"));
+        gyroToggle = new Switch(this);
+        gyroToggle.setText(tr("Giroscópio do DS4", "DS4 gyroscope")); gyroToggle.setTextSize(15); gyroToggle.setTextColor(INK);
+        gyroToggle.setMinHeight(dp(56));
+        android.content.res.ColorStateList toggleTint = new android.content.res.ColorStateList(
+                new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}}, new int[]{ACCENT, MUTED});
+        gyroToggle.setThumbTintList(toggleTint);
+        sensorCard.addView(gyroToggle, fullWidth());
+        gyroStatus = text("", 13, false); gyroStatus.setTextColor(MUTED); sensorCard.addView(gyroStatus, fullWidth());
+        View sensorDivider = new View(this); sensorDivider.setBackgroundColor(BORDER);
+        LinearLayout.LayoutParams dividerParams = fullWidth(); dividerParams.height = dp(1); dividerParams.setMargins(0, dp(14), 0, dp(10));
+        sensorCard.addView(sensorDivider, dividerParams);
+        fieldLabel(sensorCard, tr("Luz do controle", "Controller light"));
+        lightbarStatus = text("", 13, false); lightbarStatus.setTextColor(MUTED); sensorCard.addView(lightbarStatus, fullWidth());
+        lightbarButton = button(tr("Escolher cor da luz", "Choose light color"));
+        lightbarButton.setOnClickListener(v -> { Controller current = selected(); if (current != null) showLightbarPicker(current); });
+        sensorCard.addView(lightbarButton, spaced()); lightbarButton.setVisibility(View.GONE);
+        gyroToggle.setOnCheckedChangeListener((button, checked) -> {
+            if (refreshingUi) return;
+            Controller current = selected(); if (current == null) return;
+            if (!current.output.equals("ds4") || (checked && findMotionPair(current) == null)) { renderControllerDetails(); return; }
+            current.gyroEnabled = checked;
+            refreshMotionSubscriptions(); persistAndSendProfile(current); renderControllerDetails();
+        });
+
+        pageIntro(liveRoot, tr("Cada movimento, ao vivo", "Every move, live"),
+                tr("Teste a entrada do jogador selecionado na aba Controles.", "Test input from the player selected in Controllers."));
+        LinearLayout liveCard = card(liveRoot, tr("MONITOR DO CONTROLE", "CONTROLLER MONITOR"));
+        liveControllerName = text("", 17, true); liveCard.addView(liveControllerName, fullWidth());
+        controllerPreview = new ControllerPreview(this); liveCard.addView(controllerPreview, new LinearLayout.LayoutParams(-1, dp(238)));
+        liveInput = text("", 13, false); liveInput.setTextColor(MUTED);
+        liveInput.setPadding(dp(14), dp(14), dp(14), dp(14)); liveInput.setLineSpacing(dp(7), 1);
+        liveInput.setTypeface(android.graphics.Typeface.MONOSPACE);
+        liveInput.setBackground(rounded(INSET, BORDER, 12)); liveCard.addView(liveInput, spaced());
+        TextView liveHint = text(tr("O destaque ciano mostra a entrada recebida pelo Android. A conexão com o PC é exibida na aba Conexão.", "Cyan highlights show input received by Android. PC connection status is shown in Connection."), 13, false);
+        liveHint.setTextColor(MUTED); liveRoot.addView(liveHint, spaced());
+        setContentView(shell); showWorkspace(activeWorkspace);
+        updateConnectionUi(); updatePendingInstruction(); renderControllerList(); renderControllerDetails();
+    }
+
+    private LinearLayout workspacePage(android.widget.FrameLayout workspace) {
+        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setClipToPadding(false);
+        scroll.setPadding(dp(16), dp(16), dp(16), dp(24)); scroll.setVerticalScrollBarEnabled(false);
+        android.widget.FrameLayout centered = new android.widget.FrameLayout(this);
+        LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
+        int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(32), dp(720));
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(width, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        centered.addView(content, params); scroll.addView(centered);
+        workspace.addView(scroll, new android.widget.FrameLayout.LayoutParams(-1, -1)); workspacePages.add(scroll);
+        // The page width follows the actual window, including rotation and split-screen resizing.
+        scroll.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+            int available = Math.max(dp(200), Math.min(r - l - dp(32), dp(720)));
+            if (content.getLayoutParams().width != available) { content.getLayoutParams().width = available; content.requestLayout(); }
+        });
+        return content;
+    }
+
+    private void showWorkspace(int selectedPage) {
+        activeWorkspace = selectedPage;
+        for (int i = 0; i < workspacePages.size(); i++) {
+            boolean selected = i == selectedPage;
+            workspacePages.get(i).setVisibility(selected ? View.VISIBLE : View.GONE);
+            Button tab = workspaceTabs.get(i); tab.setSelected(selected);
+            tab.setTextColor(selected ? ACCENT : MUTED);
+            tab.setBackground(rounded(selected ? 0xff24343a : BG, selected ? 0xff46616a : BORDER, 10));
+            tab.setContentDescription(tab.getText() + (selected ? tr(", selecionado", ", selected") : ""));
+        }
+    }
+
+    private void pageIntro(LinearLayout parent, String heading, String description) {
+        TextView title = text(heading, 25, true); title.setPadding(dp(2), dp(3), 0, dp(5)); parent.addView(title);
+        TextView subtitle = text(description, 14, false); subtitle.setTextColor(MUTED); subtitle.setLineSpacing(dp(3), 1);
+        subtitle.setPadding(dp(2), 0, 0, dp(12)); parent.addView(subtitle);
+    }
+
+    private TextView fieldLabel(LinearLayout parent, String label) {
+        TextView view = text(label, 12, true); view.setTextColor(MUTED); view.setPadding(0, dp(8), 0, dp(6));
+        parent.addView(view, fullWidth()); return view;
+    }
+
+    private EditText input(String hint) {
+        EditText view = new EditText(this); view.setSingleLine(true); view.setTextSize(15);
+        view.setTextColor(INK); view.setHintTextColor(MUTED); view.setHint(hint);
+        view.setPadding(dp(14), dp(12), dp(14), dp(12)); view.setMinHeight(dp(52));
+        view.setBackground(rounded(INSET, BORDER, 10)); return view;
+    }
+
+    private ArrayAdapter<String> pickerAdapter(String[] items) {
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
+            @Override public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setText(items[position] + "   ▾");
+                view.setTextColor(INK); view.setTextSize(15); view.setPadding(dp(14), dp(12), dp(14), dp(12)); return view;
+            }
+            @Override public View getDropDownView(int position, View convertView, android.view.ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                view.setTextColor(INK); view.setBackgroundColor(SURFACE); view.setMinHeight(dp(52)); return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); return adapter;
+    }
+
+    private void stylePicker(Spinner picker) {
+        picker.setMinimumHeight(dp(52)); picker.setBackground(rounded(INSET, BORDER, 10));
+        picker.setPopupBackgroundDrawable(rounded(SURFACE, BORDER, 10));
+        picker.setPadding(0, 0, dp(12), 0);
+    }
+
+    private LinearLayout.LayoutParams spaced() {
+        LinearLayout.LayoutParams params = fullWidth(); params.topMargin = dp(7); return params;
+    }
+
+    private void primary(Button button) {
+        button.setTextColor(0xff102125); button.setTypeface(null, android.graphics.Typeface.BOLD);
+        button.setBackground(rounded(ACCENT, ACCENT, 11));
     }
 
     private void updateConnectionUi() {
@@ -409,6 +563,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private void updateTransportUi() {
         if(hostAddress==null)return;
         boolean editable=bridge==null && wifiMode;
+        hostAddress.setVisibility(wifiMode ? View.VISIBLE : View.GONE);
+        if (hostLabel != null) hostLabel.setVisibility(wifiMode ? View.VISIBLE : View.GONE);
+        if (pairingLabel != null) pairingLabel.setVisibility(wifiMode ? View.VISIBLE : View.GONE);
         hostAddress.setEnabled(editable); hostAddress.setFocusable(editable); hostAddress.setFocusableInTouchMode(editable);
         hostAddress.setHint(wifiMode?tr("IP local do PC","PC local IP address"):tr("USB · 127.0.0.1","USB · 127.0.0.1"));
         if(!wifiMode)hostAddress.setText("127.0.0.1");
@@ -428,8 +585,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private void updatePendingInstruction() {
         if(helpText==null) return;
         Controller controller=selected();
+        if (cancelCaptureButton != null) cancelCaptureButton.setVisibility(pendingButton != null || pendingAxis != null ? View.VISIBLE : View.GONE);
         if(pendingButton!=null && controller!=null)
-            helpText.setText(tr("Agora pressione o botão físico que deve corresponder a ","Press the physical button that should map to ")+friendlyButtons.get(pendingButton)+".");
+            helpText.setText(tr("Agora pressione o botão físico que deve corresponder a ","Press the physical button that should map to ")+displayButtonLabel(pendingButton)+".");
         else if(pendingAxis!=null && controller!=null) {
             String label=trAxisLabel(pendingAxis);
             helpText.setText(tr("Mova somente o eixo que deseja usar para ","Move only the axis you want to use for ")+label+".");
@@ -446,18 +604,19 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
     private LinearLayout card(LinearLayout parent,String heading) {
         LinearLayout outer=new LinearLayout(this); outer.setOrientation(LinearLayout.VERTICAL);
-        outer.setPadding(dp(12),dp(8),dp(12),dp(10)); outer.setBackground(rounded(0xff202833,0xff303c49,13));
-        LinearLayout.LayoutParams params=fullWidth(); params.topMargin=dp(9); parent.addView(outer,params);
-        TextView title=text(heading,11,true); title.setTextColor(0xff6fa5ff); title.setLetterSpacing(.06f);
+        outer.setPadding(dp(16),dp(14),dp(16),dp(16)); outer.setBackground(rounded(SURFACE,BORDER,16));
+        LinearLayout.LayoutParams params=fullWidth(); params.topMargin=dp(12); parent.addView(outer,params);
+        TextView title=text(heading,10,true); title.setTextColor(ACCENT); title.setLetterSpacing(.12f); title.setPadding(0,0,0,dp(9));
         outer.addView(title); return outer;
     }
     private TextView text(String value, int sp, boolean bold) {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(sp);
-        view.setTextColor(0xffe5ebf2);
+        view.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}}, new int[]{0xff647075, INK}));
         if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
-        view.setPadding(0, 6, 0, 6);
+        view.setPadding(0, dp(3), 0, dp(3));
         return view;
     }
     private Button button(String value) {
@@ -465,10 +624,12 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         view.setText(value);
         view.setAllCaps(false);
         view.setTextSize(13);
-        view.setTextColor(0xffe8eef5);
-        view.setMinHeight(dp(42)); view.setMinWidth(0);
+        view.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}}, new int[]{0xff647075, INK}));
+        view.setMinHeight(dp(48)); view.setMinimumHeight(dp(48)); view.setMinWidth(0); view.setMinimumWidth(0);
         view.setPadding(dp(10),dp(4),dp(10),dp(4));
-        view.setBackground(rounded(0xff2b3744,0xff3a4a5a,9));
+        android.content.res.ColorStateList rippleColor = android.content.res.ColorStateList.valueOf(0x3352d8e8);
+        view.setBackground(new android.graphics.drawable.RippleDrawable(rippleColor, rounded(0xff293033,BORDER,10), null));
         return view;
     }
     @Override protected void onResume() {
@@ -555,7 +716,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         closeLightbarSession(controller);
         if (controller.id().equals(selectedControllerId)) {
             selectedControllerId = controllers.isEmpty() ? null : controllers.values().iterator().next().id();
-            pendingButton = null; pendingAxis = null;
+            pendingButton = null; pendingAxis = null; axisCaptureBaseline.clear();
             if (helpText != null) helpText.setText(tr("Selecione um controle e toque em Mapear para configurar.","Select a controller and tap Map to configure it."));
         }
         renderControllerList();
@@ -623,7 +784,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
 
     private void showLightbarPicker(Controller controller) {
         if (controller.rgbLight == null) return;
-        int initial = controller.lightbarColor == Integer.MIN_VALUE ? 0xff397cf6 : controller.lightbarColor;
+        int initial = controller.lightbarColor == Integer.MIN_VALUE ? ACCENT : controller.lightbarColor;
         LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(22),dp(8),dp(22),dp(4));
         View preview = new View(this); preview.setBackground(rounded(initial,initial,10));
         LinearLayout.LayoutParams previewParams=fullWidth(); previewParams.height=dp(42); previewParams.bottomMargin=dp(12); content.addView(preview,previewParams);
@@ -769,15 +930,19 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     }
 
     private void captureAxis(Controller controller, MotionEvent event) {
-        InputDevice.MotionRange bestRange = null;
-        float bestMagnitude = .35f;
+        List<AxisCaptureSelector.Sample> samples = new ArrayList<>();
         for (InputDevice.MotionRange range : controller.device.getMotionRanges()) {
             if ((range.getSource() & InputDevice.SOURCE_CLASS_JOYSTICK) == 0) continue;
             float raw = event.getAxisValue(range.getAxis());
-            if (Math.abs(raw) <= bestMagnitude) continue;
-            bestMagnitude = Math.abs(raw);
-            bestRange = range;
+            Float baseline = axisCaptureBaseline.get(range.getAxis());
+            if (baseline == null) {
+                axisCaptureBaseline.put(range.getAxis(), raw);
+                continue;
+            }
+            samples.add(new AxisCaptureSelector.Sample(range.getAxis(), baseline, raw, range.getMin(), range.getMax()));
         }
+        Integer source = AxisCaptureSelector.select(samples);
+        InputDevice.MotionRange bestRange = source == null ? null : controller.device.getMotionRange(source, InputDevice.SOURCE_JOYSTICK);
         if (bestRange != null) {
             InputDevice.MotionRange range = bestRange;
             boolean trigger = pendingAxis.equals("lt") || pendingAxis.equals("rt");
@@ -789,6 +954,7 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             controller.mapping = controller.mapping.withAxis(pendingAxis, binding);
             String axis = pendingAxis;
             pendingAxis = null;
+            axisCaptureBaseline.clear();
             profiles.put(controller.profileId, controller.revision, controller.output, controller.gyroEnabled, encodeMapping(controller.mapping));
             persistAndSendProfile(controller);
             helpText.setText(tr("Eixo ","Axis ") + axis + tr(" remapeado para "," mapped to ") + axisName(range.getAxis()) + ".");
@@ -796,6 +962,12 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             return;
         }
         helpText.setText(tr("Ainda não detectei movimento. Mova apenas o eixo que deseja mapear.","No axis movement detected. Move only the axis you want to map."));
+    }
+
+    private void startAxisCapture(Controller controller, String logical) {
+        pendingAxis = logical; pendingButton = null;
+        axisCaptureBaseline.clear(); axisCaptureBaseline.putAll(controller.rawAxes);
+        updatePendingInstruction(); renderMappingRows(controller);
     }
 
     private void refreshState(Controller controller, MotionEvent event) {
@@ -869,6 +1041,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
             selectedControllerId = controller.id();
             pendingButton = logicalButton;
             pendingAxis = null;
+            axisCaptureBaseline.clear();
+            showWorkspace(1);
             renderControllerList();
             renderControllerDetails();
             updatePendingInstruction();
@@ -1206,49 +1380,46 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         if (controllerList == null) return;
         controllerList.removeAllViews();
         List<Controller> all = new ArrayList<>(controllers.values());
+        controllerCount.setText(tr("CONTROLES CONECTADOS", "CONNECTED CONTROLLERS") + "  ·  " + all.size());
         if (all.isEmpty()) {
-            TextView empty=text(tr("Nenhum controle encontrado. Conecte um controle Bluetooth ao celular.","No controllers found. Connect a Bluetooth controller to your phone."),13,false);
-            empty.setTextColor(0xff9aa9b8); empty.setPadding(dp(10),dp(12),dp(10),dp(12));
-            empty.setBackground(rounded(0xff18212b,0xff2d3946,9)); controllerList.addView(empty,fullWidth());
-            return;
+            TextView empty = text(tr("Nenhum controle conectado\nPareie um controle nas configurações Bluetooth do Android.", "No controllers connected\nPair a controller in Android Bluetooth settings."), 14, false);
+            empty.setTextColor(MUTED); empty.setPadding(dp(16), dp(18), dp(16), dp(18));
+            empty.setLineSpacing(dp(5), 1); empty.setBackground(rounded(INSET, BORDER, 12));
+            controllerList.addView(empty, new LinearLayout.LayoutParams(dp(268), -2)); return;
         }
-        for (int i=0;i<all.size();i++) {
-            Controller controller=all.get(i);
-            boolean selected=controller.id().equals(selectedControllerId);
-            LinearLayout item=new LinearLayout(this); item.setOrientation(LinearLayout.HORIZONTAL);
-            item.setGravity(Gravity.CENTER_VERTICAL); item.setPadding(dp(10),dp(8),dp(10),dp(8));
-            item.setBackground(rounded(selected?0xff243650:0xff18212b,selected?0xff4b8dff:0xff2d3946,10));
-            item.setMinimumHeight(dp(66)); item.setClickable(true); item.setFocusable(true);
-            LinearLayout.LayoutParams itemParams=fullWidth(); itemParams.bottomMargin=dp(7);
-            TextView index=new TextView(this); index.setText(Integer.toString(i+1)); index.setTextSize(14); index.setGravity(Gravity.CENTER);
-            index.setTextColor(selected?Color.WHITE:0xffafbdcb); index.setBackground(rounded(selected?0xff397cf6:0xff2b3744,selected?0xff397cf6:0xff3a4a5a,24));
-            LinearLayout.LayoutParams badgeParams=new LinearLayout.LayoutParams(dp(38),dp(38)); badgeParams.setMargins(0,0,dp(10),0); item.addView(index,badgeParams);
-            LinearLayout labels=new LinearLayout(this); labels.setOrientation(LinearLayout.VERTICAL);
-            TextView name=text(controller.displayName(),15,true); name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            String linkState=controller.attached?tr("PC conectado","PC connected"):tr("Celular conectado · PC aguardando","Phone connected · waiting for PC");
-            String outputState=controller.output.equals("ds4")?"DualShock 4":"Xbox 360";
-            TextView state=text(linkState+"  ·  "+outputState,11,false);
-            state.setTextColor(controller.attached?0xff7bd69c:0xff93a3b4);
-            labels.addView(name); labels.addView(state);
-            item.addView(labels,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f));
-            TextView selectedTag=text(selected?tr("EDITANDO","EDITING"):"›",selected?9:22,true);
-            selectedTag.setTextColor(selected?0xff8bb7ff:0xff8292a4); selectedTag.setGravity(Gravity.CENTER);
-            item.addView(selectedTag,new LinearLayout.LayoutParams(selected?dp(68):dp(26),LinearLayout.LayoutParams.WRAP_CONTENT));
-            item.setContentDescription(controller.displayName()+ (selected?tr(", selecionado para configurar",", selected for setup"):""));
-            item.setOnClickListener(v->{
-                if(!controller.id().equals(selectedControllerId)) {
-                    pendingButton=null; pendingAxis=null;
-                    helpText.setText(tr("Toque em Mapear para configurar este controle.","Tap Map to configure this controller."));
+        for (int i = 0; i < all.size(); i++) {
+            Controller controller = all.get(i);
+            boolean isSelected = controller.id().equals(selectedControllerId);
+            LinearLayout item = new LinearLayout(this); item.setOrientation(LinearLayout.VERTICAL);
+            item.setPadding(dp(14), dp(12), dp(14), dp(12)); item.setMinimumHeight(dp(100));
+            item.setBackground(rounded(isSelected ? 0xff24363c : SURFACE, isSelected ? ACCENT : BORDER, 13));
+            item.setClickable(true); item.setFocusable(true); item.setSelected(isSelected);
+            TextView player = text(tr("JOGADOR ", "PLAYER ") + (i + 1) + (isSelected ? "  ✓" : ""), 10, true);
+            player.setLetterSpacing(.08f); player.setTextColor(isSelected ? ACCENT : MUTED); item.addView(player);
+            TextView name = text(controller.displayName(), 14, true); name.setSingleLine(true);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.END); item.addView(name);
+            String output = controller.output.equals("ds4") ? "DualShock 4" : "Xbox 360";
+            TextView status = text((controller.attached && controller.profileReady ? "● " : "○ ") + output, 12, false);
+            status.setTextColor(controller.attached && controller.profileReady ? 0xff8dd5ad : MUTED); item.addView(status);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(184), -2); params.rightMargin = dp(8);
+            item.setContentDescription(tr("Jogador ", "Player ") + (i + 1) + ", " + controller.displayName() + ", " + output + (isSelected ? tr(", selecionado", ", selected") : ""));
+            item.setOnClickListener(v -> {
+                if (!controller.id().equals(selectedControllerId)) {
+                    pendingButton = null; pendingAxis = null; axisCaptureBaseline.clear();
+                    helpText.setText(tr("Abra um grupo para configurar este controle.", "Open a group to configure this controller."));
                 }
-                selectedControllerId=controller.id();renderControllerList();renderControllerDetails();updatePendingInstruction();
+                selectedControllerId = controller.id(); renderControllerList(); renderControllerDetails(); updatePendingInstruction();
             });
-            controllerList.addView(item,itemParams);
+            controllerList.addView(item, params);
         }
     }
 
     private void renderControllerDetails() {
         Controller controller = selected();
         refreshingUi = true;
+        if (resetMappingButton != null) resetMappingButton.setEnabled(controller != null);
+        if (calibrateButton != null) calibrateButton.setEnabled(controller != null);
+        if (liveControllerName != null) liveControllerName.setText(controller == null ? tr("Aguardando controle", "Waiting for a controller") : controller.displayName());
         if (outputPicker != null) { outputPicker.setEnabled(controller != null); outputPicker.setSelection(controller != null && controller.output.equals("ds4") ? 1 : 0); }
         inspectLightbar(controller);
         if(lightbarStatus!=null && lightbarButton!=null) {
@@ -1272,7 +1443,9 @@ public final class MainActivity extends Activity implements InputManager.InputDe
                 lightbarButton.setText(controller.lightbarColor==Integer.MIN_VALUE
                         ?tr("Escolher cor da luz","Choose light color")
                         :tr("Alterar cor da luz","Change light color"));
-                lightbarButton.setBackground(rounded(controller.lightbarColor==Integer.MIN_VALUE?0xff2b3744:controller.lightbarColor,0xff3a4a5a,9));
+                int lightColor = controller.lightbarColor == Integer.MIN_VALUE ? 0xff293033 : controller.lightbarColor;
+                lightbarButton.setBackground(rounded(lightColor, BORDER, 10));
+                lightbarButton.setTextColor(Color.luminance(lightColor) > .45 ? 0xff102125 : INK);
             }
         }
         MotionPair motionPair=controller==null?null:findMotionPair(controller);
@@ -1292,9 +1465,8 @@ public final class MainActivity extends Activity implements InputManager.InputDe
         }
         if (profileSummary != null) {
             if (controller == null) profileSummary.setText(tr("Nenhum controle detectado.","No controller selected."));
-            else profileSummary.setText(tr("Perfil: ","Profile: ") + controller.device.getName() + " · "
-                    + (controller.output.equals("ds4") ? "DualShock 4" : "Xbox 360") + " · "
-                    + (controller.attached ? tr("vinculado ao PC","linked to PC") : tr("aguardando conexão","waiting for connection")));
+            else profileSummary.setText(controller.device.getName() + "\n" +
+                    (controller.attached && controller.profileReady ? tr("● Perfil ativo no PC", "● Profile active on PC") : tr("○ Perfil salvo no celular", "○ Profile saved on phone")));
         }
         if (mappingRows != null) renderMappingRows(controller);
         refreshingUi = false;
@@ -1304,72 +1476,96 @@ public final class MainActivity extends Activity implements InputManager.InputDe
     private void renderMappingRows(Controller controller) {
         mappingRows.removeAllViews();
         if (controller == null) {
-            mappingRows.addView(text(tr("Conecte um controle Bluetooth ao Android para editar o mapeamento.","Connect a Bluetooth controller to edit its mapping."), 13, false));
-            return;
+            TextView empty = text(tr("Conecte um controle Bluetooth para editar o mapeamento.", "Connect a Bluetooth controller to edit its mapping."), 14, false);
+            empty.setTextColor(MUTED); mappingRows.addView(empty); return;
         }
-        for (String logical : MappingModel.BUTTONS) {
-            Integer key = controller.mapping.buttonSources().get(logical);
-            String current = key == null ? "—" : KeyEvent.keyCodeToString(key);
-            mappingRows.addView(bindingRow(friendlyButtons.get(logical), current, () -> {
-                pendingButton = logical; pendingAxis = null;
-                helpText.setText(tr("Agora pressione o botão físico que deve corresponder a ","Press the physical button that should map to ") + friendlyButtons.get(logical) + ".");
-            }, null, false));
-        }
-        String[] axisLabels = {trAxisLabel("lx"),trAxisLabel("ly"),trAxisLabel("rx"),trAxisLabel("ry"),trAxisLabel("lt"),trAxisLabel("rt")};
-        for (int i = 0; i < MappingModel.AXES.size(); i++) {
-            String logical = MappingModel.AXES.get(i);
-            MappingModel.AxisBinding axis = controller.mapping.axisBindings().get(logical);
-            String current = axis == null ? "—" : axisName(axis.source) + (axis.invert ? " · " + tr("invertido","inverted") : "");
-            int axisIndex = i;
-            Button invert = button(tr("Inverter: ","Invert: ") + (axis != null && axis.invert ? tr("sim","on") : tr("não","off")));
-            invert.setOnClickListener(v -> {
-                MappingModel.AxisBinding before = controller.mapping.axisBindings().get(logical);
-                if (before == null) return;
-                controller.mapping = controller.mapping.withInverted(logical, !before.invert);
-                persistAndSendProfile(controller);
-            });
-            mappingRows.addView(bindingRow(axisLabels[axisIndex], current, () -> {
-                pendingAxis = logical; pendingButton = null;
-                helpText.setText(tr("Mova somente o eixo que deseja usar para ","Move only the axis you want to use for ") + axisLabels[axisIndex] + ".");
-            }, invert, true));
-        }
+        mappingGroup(controller, "action", tr("Botões de ação", "Action buttons"), new String[]{"south", "east", "west", "north"}, false);
+        mappingGroup(controller, "left-shoulder", tr("Lado esquerdo · gatilho e ombro", "Left side · trigger & shoulder"), new String[]{"l2", "l1"}, false);
+        mappingGroup(controller, "right-shoulder", tr("Lado direito · gatilho e ombro", "Right side · trigger & shoulder"), new String[]{"r2", "r1"}, false);
+        mappingGroup(controller, "center", tr("Botões centrais e sticks", "Center & stick buttons"), new String[]{"share", "options", "l3", "r3", "ps"}, false);
+        mappingGroup(controller, "dpad", tr("Direcional", "D-pad"), new String[]{"dpad_up", "dpad_down", "dpad_left", "dpad_right"}, false);
+        mappingGroup(controller, "axes", tr("Eixos e analógicos", "Axes & sticks"), MappingModel.AXES.toArray(new String[0]), true);
+        updatePendingInstruction();
     }
 
-    private View bindingRow(String label, String current, Runnable remap, Button extra, boolean compact) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(8), dp(5), dp(6), dp(5));
-        row.setBackground(rounded(0xff18212b,0xff2d3946,8));
-        LinearLayout.LayoutParams rowParams=fullWidth(); rowParams.bottomMargin=dp(5);
-        LinearLayout info = new LinearLayout(this);
-        info.setOrientation(LinearLayout.VERTICAL);
-        TextView title = text(label, compact ? 13 : 14, true);
-        TextView source = text(current, 11, false);
-        source.setTextColor(0xff8797a8); source.setSingleLine(true); source.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        info.addView(title); info.addView(source);
-        row.addView(info, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        if (extra != null) {
-            extra.setTextSize(10); extra.setSingleLine(true);
-            LinearLayout.LayoutParams extraParams=new LinearLayout.LayoutParams(dp(88),dp(38));
-            extraParams.setMargins(dp(3),0,dp(3),0); row.addView(extra,extraParams);
+    private void mappingGroup(Controller controller, String id, String title, String[] logicals, boolean axes) {
+        LinearLayout group = new LinearLayout(this); group.setOrientation(LinearLayout.VERTICAL);
+        group.setBackground(rounded(INSET, BORDER, 11));
+        boolean capturingHere = java.util.Arrays.asList(logicals).contains(axes ? pendingAxis : pendingButton);
+        boolean expanded = expandedMappingGroups.contains(id) || capturingHere;
+        Button heading = button(title + "   " + (expanded ? "−" : "+"));
+        heading.setGravity(Gravity.START | Gravity.CENTER_VERTICAL); heading.setTextSize(14);
+        heading.setPadding(dp(12), dp(10), dp(12), dp(10));
+        heading.setTextColor(expanded ? ACCENT : INK);
+        heading.setContentDescription(title + (expanded ? tr(", recolher", ", collapse") : tr(", expandir", ", expand")));
+        group.addView(heading, fullWidth());
+        heading.setOnClickListener(v -> {
+            if (!expandedMappingGroups.add(id)) expandedMappingGroups.remove(id);
+            renderMappingRows(controller);
+        });
+        if (expanded) {
+            for (String logical : logicals) {
+                if (!axes && !MappingModel.BUTTONS.contains(logical)) continue;
+                if (axes) {
+                    MappingModel.AxisBinding axis = controller.mapping.axisBindings().get(logical);
+                    String current = axis == null ? "—" : axisName(axis.source);
+                    Button invert = button(tr("Inverter: ", "Invert: ") + (axis != null && axis.invert ? tr("sim", "on") : tr("não", "off")));
+                    invert.setEnabled(axis != null);
+                    invert.setOnClickListener(v -> {
+                        MappingModel.AxisBinding before = controller.mapping.axisBindings().get(logical);
+                        if (before == null) return;
+                        controller.mapping = controller.mapping.withInverted(logical, !before.invert); persistAndSendProfile(controller);
+                    });
+                    group.addView(bindingRow(trAxisLabel(logical), current, () -> {
+                        startAxisCapture(controller, logical);
+                    }, invert, logical.equals(pendingAxis)), fullWidth());
+                } else {
+                    Integer key = controller.mapping.buttonSources().get(logical);
+                    String current = key == null ? "—" : KeyEvent.keyCodeToString(key).replace("KEYCODE_", "").replace("BUTTON_", "");
+                    group.addView(bindingRow(displayButtonLabel(logical), current, () -> {
+                        pendingButton = logical; pendingAxis = null; axisCaptureBaseline.clear(); updatePendingInstruction(); renderMappingRows(controller);
+                    }, null, logical.equals(pendingButton)), fullWidth());
+                }
+            }
         }
-        Button change = button(tr("Mapear","Map"));
-        change.setTextSize(11); change.setSingleLine(true);
-        change.setOnClickListener(v -> remap.run());
-        row.addView(change, new LinearLayout.LayoutParams(dp(78),dp(38)));
-        row.setLayoutParams(rowParams);
+        mappingRows.addView(group, spaced());
+    }
+
+    private View bindingRow(String label, String current, Runnable remap, Button extra, boolean capturing) {
+        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(dp(12), dp(12), dp(12), dp(12));
+        if (capturing) row.setBackground(rounded(0xff24383d, ACCENT, 9));
+        LinearLayout info = new LinearLayout(this); info.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = text(label, 14, true);
+        info.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView source = text(current, 12, false); source.setTextColor(ACCENT);
+        source.setGravity(Gravity.END); source.setMaxLines(2);
+        info.addView(source, new LinearLayout.LayoutParams(dp(100), -2));
+        row.addView(info, fullWidth());
+        LinearLayout actions = new LinearLayout(this); actions.setPadding(0, dp(8), 0, 0);
+        if (extra != null) {
+            extra.setTextSize(12); LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+            params.rightMargin = dp(8); actions.addView(extra, params);
+        }
+        Button change = button(capturing ? tr("Aguardando entrada…", "Waiting for input…") : tr("Mapear", "Map"));
+        change.setTextColor(ACCENT); change.setOnClickListener(v -> remap.run());
+        change.setContentDescription(tr("Mapear ", "Map ") + label);
+        actions.addView(change, new LinearLayout.LayoutParams(0, dp(48), 1)); row.addView(actions, fullWidth());
         return row;
     }
 
     private void renderLiveState() {
         if (liveInput == null) return;
         Controller controller = selected();
-        if (controller == null) { liveInput.setText(tr("Conecte um controle Bluetooth ao celular.","Connect a Bluetooth controller to your phone.")); return; }
+        if (controller == null) {
+            liveInput.setText(tr("Conecte um controle Bluetooth ao celular.", "Connect a Bluetooth controller to your phone."));
+            if (controllerPreview != null) controllerPreview.setInput(null, null); return;
+        }
         Map<String, Boolean> buttons = controller.mapping.mapButtons(controller.pressedKeys, controller.hatX, controller.hatY);
         List<String> active = new ArrayList<>();
-        for (Map.Entry<String, Boolean> entry : buttons.entrySet()) if (entry.getValue()) active.add(friendlyButtons.get(entry.getKey()));
+        for (Map.Entry<String, Boolean> entry : buttons.entrySet()) if (entry.getValue()) active.add(displayButtonLabel(entry.getKey()));
         Map<String, Float> axes = controller.mapping.mapAxes(axis -> readCurrentAxis(controller, axis));
+        if (controllerPreview != null) { controllerPreview.setOutput(controller.output.equals("ds4")); controllerPreview.setInput(buttons, axes); }
         liveInput.setText(tr("Pressionados: ","Pressed: ") + (active.isEmpty() ? tr("nenhum","none") : String.join(", ", active))
                 + "\nLX " + f(axes.get("lx")) + "  LY " + f(axes.get("ly"))
                 + "\nRX " + f(axes.get("rx")) + "  RY " + f(axes.get("ry"))

@@ -40,6 +40,7 @@ public sealed class DashboardForm : Form
     private readonly ControllerDiagram _diagram = new();
     private readonly Label _motion = new();
     private readonly Label _axes = new();
+    private readonly Label _rightTriggerAxis = new();
     private readonly Dictionary<string, Button> _mappingFields = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Label> _mappingLabels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (string Button, int Revision)> _captures = new(StringComparer.Ordinal);
@@ -231,8 +232,12 @@ public sealed class DashboardForm : Form
         center.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); center.RowStyles.Add(new RowStyle(SizeType.Absolute, 29));
         _diagram.Dock = DockStyle.Fill; _diagram.BackColor = BackColor; _diagram.Margin = Padding.Empty; _diagram.AccessibleName = T("Resposta ao vivo da saída virtual", "Live virtual output response"); _diagram.LogicalButtonClicked += RemapButton;
         center.Controls.Add(_diagram, 0, 0);
-        _axes.Dock = DockStyle.Fill; _axes.TextAlign = ContentAlignment.MiddleCenter; _axes.Font = new Font("Segoe UI", 8.5f); _axes.ForeColor = Color.FromArgb(137, 154, 163);
-        center.Controls.Add(_axes, 0, 1); map.Controls.Add(center, 1, 0);
+        var triggerReadings = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, Padding = new Padding(12, 0, 12, 0) };
+        triggerReadings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); triggerReadings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        _axes.Dock = DockStyle.Fill; _axes.TextAlign = ContentAlignment.MiddleLeft; _axes.Font = new Font("Segoe UI", 8.5f); _axes.ForeColor = Color.FromArgb(137, 154, 163);
+        _rightTriggerAxis.Dock = DockStyle.Fill; _rightTriggerAxis.TextAlign = ContentAlignment.MiddleRight; _rightTriggerAxis.Font = _axes.Font; _rightTriggerAxis.ForeColor = _axes.ForeColor;
+        triggerReadings.Controls.Add(_axes, 0, 0); triggerReadings.Controls.Add(_rightTriggerAxis, 1, 0);
+        center.Controls.Add(triggerReadings, 0, 1); map.Controls.Add(center, 1, 0);
         var right = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
         right.RowStyles.Add(new RowStyle(SizeType.Percent, 46)); right.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
         right.Controls.Add(BuildMappingGroup(T("Botões de ação", "Action buttons"), ["south", "east", "west", "north"]), 0, 0);
@@ -479,7 +484,8 @@ public sealed class DashboardForm : Form
             field.Text = T("Ao vivo  ", "Live  ") + amount.ToString("0.00");
             field.ForeColor = amount > 0.1f ? Color.FromArgb(91, 225, 238) : Color.FromArgb(159, 174, 181);
         }
-        _axes.Text = $"{(snapshot?.Output == "ds4" ? "L2" : "LT")}  {state.Axis("lt"):0.00}     {(snapshot?.Output == "ds4" ? "R2" : "RT")}  {state.Axis("rt"):0.00}    ·    {T("eixos ao vivo", "live axes")}";
+        _axes.Text = $"{(snapshot?.Output == "ds4" ? "L2" : "LT")}  {state.Axis("lt"):0.00}";
+        _rightTriggerAxis.Text = $"{(snapshot?.Output == "ds4" ? "R2" : "RT")}  {state.Axis("rt"):0.00}";
         _motion.Text = snapshot == null ? T("Movimento · nenhum controle selecionado", "Motion · no controller selected")
             : snapshot.Output != "ds4" ? T("Movimento · indisponível na saída Xbox 360", "Motion · unavailable on Xbox 360 output")
             : !snapshot.GyroEnabled ? T("Movimento · desativado\r\nRequer sensor do controle exposto pelo Android.", "Motion · disabled\r\nRequires a controller sensor exposed by Android.")

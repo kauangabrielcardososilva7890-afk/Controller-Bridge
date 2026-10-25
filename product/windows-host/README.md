@@ -1,4 +1,4 @@
-# Controller Bridge — Windows 0.6.0
+# Controller Bridge — Windows 0.6.1
 
 > **100% AI-created project.** Forward Android-connected Bluetooth game controllers to separate virtual controllers on Windows 11.
 
@@ -6,7 +6,7 @@
 
 ### Start and connect
 
-1. Download `ControllerBridge-Windows-EN-v0.6.0.zip` (or the PT-BR variant) and extract the **whole ZIP**.
+1. Download `ControllerBridge-Windows-EN-v0.6.1.zip` (or the PT-BR variant) and extract the **whole ZIP**.
 2. Open **ControllerBridge.exe**. Choose **1 for USB** (or press Enter), even if the phone is not connected yet; the host opens and waits. Choose **2 for Wi-Fi** if both devices are on the same local network. Select the same transport in the Android app.
 3. For USB, connect the unlocked phone and authorize USB debugging when prompted. The host prepares ADB reverse automatically, including after reconnecting the cable. For Wi-Fi, enter the PC IP, port **47653**, and pairing code shown in the dashboard into Android. Minimize the dashboard to keep the host running; type `stop` or `parar` in the console, or close the dashboard, to stop it.
 
@@ -47,7 +47,7 @@ The official client is MIT-licensed, ViGEmBus is BSD-3-Clause, and .NET includes
 
 ### Iniciar e conectar
 
-1. Baixe `ControllerBridge-Windows-PT-BR-v0.6.0.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
+1. Baixe `ControllerBridge-Windows-PT-BR-v0.6.1.zip` (ou a variante EN) e extraia o **ZIP inteiro**.
 2. Abra **ControllerBridge.exe**. Escolha **1 para USB** (ou pressione Enter), mesmo que o celular ainda não esteja conectado; o host abre e aguarda. Escolha **2 para Wi-Fi** se os dispositivos estiverem na mesma rede local. Selecione o mesmo modo no app Android.
 3. Para USB, conecte o celular desbloqueado e autorize a depuração USB quando solicitado. O host prepara o ADB reverse automaticamente, inclusive após reconectar o cabo. Para Wi-Fi, informe no Android o IP, a porta **47653** e o código de pareamento mostrados no painel. Minimize o painel para deixá-lo ativo; digite `stop` ou `parar` no console, ou feche o painel, para encerrar.
 

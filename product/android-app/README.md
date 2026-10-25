@@ -4,6 +4,12 @@
 
 Android client that forwards Bluetooth controllers recognized by the phone to the Windows host. Input capture runs while the app is open, and the app keeps the screen awake on its main screen.
 
+## Version 0.6.1
+
+The app now has separate Connection, Controllers and Live input pages, horizontal player selection, grouped mappings and distinct live Xbox/DS4 diagrams. Axis capture uses movement from a baseline so an idle trigger at -1 cannot steal another axis capture.
+
+The v0.5.1 signing key was unavailable. Android 0.6.1 uses a different signing certificate and cannot update v0.5.1 in place. Uninstalling deletes the old profiles and pairing data; preserve any needed settings before reinstalling.
+
 ## Install and connect
 
 Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`; **EN** installs as `com.controllerbridge.app.en`, so both can be installed together. Each starts and stays in its named language.
@@ -11,7 +17,7 @@ Two APK variants are provided. **PT-BR** installs as `com.controllerbridge.app`;
 1. Pair the controller with Android in the system Bluetooth settings.
 2. Install/start the Controller Bridge Windows host and its required virtual controller driver on the PC. In Wi-Fi mode, the Windows dashboard displays the PC IP, port **47653**, and pairing code.
 3. In the phone app, choose **USB** or **Wi-Fi**:
-   - **USB:** connect the phone to the PC, unlock it, and allow USB debugging. When opening the Windows host, press Enter to choose USB (or start it with `--usb`); it prepares `adb reverse tcp:47652 tcp:47652` automatically. Keep `127.0.0.1` as the host address. Restart the host after reconnecting the cable.
+   - **USB:** connect the phone to the PC, unlock it, and allow USB debugging. When opening the Windows host, press Enter to choose USB (or start it with `--usb`); it prepares `adb reverse tcp:47652 tcp:47652` automatically. Keep `127.0.0.1` as the host address. The host automatically prepares the connection again after reconnecting the cable.
    - **Wi-Fi:** choose Wi-Fi when opening the Windows host (or start it with `--wifi`). Connect phone and PC to the same LAN, enter the PC's LAN IP, port **47653**, and the 32-character pairing code shown on the dashboard. The app pairs each PC once and saves the pairing key encrypted with Android Keystore. Wi-Fi uses authenticated AES-GCM messages; USB stays on local port 47652. The host does not add firewall rules automatically.
 4. Tap **Connect to PC** and keep the app screen open while playing. Choose Xbox 360 or DualShock 4 output in either the phone app or Windows dashboard. On Windows, click a button on the controller diagram to choose it for remapping, then press the replacement physical button on the controller connected to the phone.
 5. The two app variants keep their own fixed language.
@@ -34,7 +40,7 @@ With Android SDK, Android Studio JBR Java 21, Gradle 8.2.1 and Android Gradle Pl
 .\Build.ps1
 ```
 
-The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.5.1.apk` and `dist/ControllerBridge-Android-EN-v0.5.1.apk`.
+The script builds both variants offline, runs focused mapping and Wi-Fi security checks, and writes `dist/ControllerBridge-Android-PT-BR-v0.6.1.apk` and `dist/ControllerBridge-Android-EN-v0.6.1.apk`.
 
 ## Current limits
 
@@ -50,6 +56,12 @@ The script builds both variants offline, runs focused mapping and Wi-Fi security
 > **Projeto criado 100% com IA.**
 
 Cliente Android que encaminha ao host Windows os controles Bluetooth reconhecidos pelo celular. A captura funciona enquanto o app está aberto, e o aplicativo mantém a tela ligada na tela principal.
+
+## Versão 0.6.1
+
+A interface tem páginas de Conexão, Controles e Ao vivo, seleção horizontal de jogadores, grupos de mapeamento e desenhos Xbox/DS4 com resposta ao comando. A captura de eixos mede a mudança desde o início para impedir que um gatilho parado em -1 seja escolhido indevidamente.
+
+A chave de assinatura da v0.5.1 não estava disponível. O APK v0.6.1 usa outro certificado e não pode atualizar a v0.5.1 por cima. Desinstalar apaga os perfis e pareamentos antigos; preserve as configurações necessárias antes de reinstalar.
 
 ## Instalar e conectar
 
@@ -81,7 +93,7 @@ Com Android SDK, Java 21 do Android Studio JBR, Gradle 8.2.1 e Android Gradle Pl
 .\Build.ps1
 ```
 
-O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.5.1.apk` e `dist/ControllerBridge-Android-EN-v0.5.1.apk`.
+O script compila as duas versões offline, executa verificações focadas de mapeamento e segurança Wi-Fi, e gera `dist/ControllerBridge-Android-PT-BR-v0.6.1.apk` e `dist/ControllerBridge-Android-EN-v0.6.1.apk`.
 
 ## Limites atuais
 

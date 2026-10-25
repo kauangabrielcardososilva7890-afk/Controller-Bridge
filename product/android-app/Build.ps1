@@ -24,11 +24,27 @@ $env:ANDROID_SDK_HOME = $null
 $env:ANDROID_PREFS_ROOT = $null
 $env:GRADLE_USER_HOME = $gradleUserHome
 New-Item -ItemType Directory -Force -Path $androidUserHome | Out-Null
- $debugKeystore = Join-Path $androidUserHome 'controller-bridge-debug.keystore'
+$debugKeystore = Join-Path $androidUserHome 'controller-bridge-debug.keystore'
+$signingHome = Join-Path $env:LOCALAPPDATA 'ControllerBridge\signing'
+$persistentKeystore = Join-Path $signingHome 'controller-bridge-debug.keystore'
+if ((Test-Path -LiteralPath $debugKeystore) -and (Test-Path -LiteralPath $persistentKeystore) -and
+    (Get-FileHash -LiteralPath $debugKeystore).Hash -ne (Get-FileHash -LiteralPath $persistentKeystore).Hash) {
+    throw 'A chave de assinatura local difere da chave preservada. Resolva a divergência antes de gerar uma atualização.'
+}
+if (!(Test-Path -LiteralPath $debugKeystore) -and (Test-Path -LiteralPath $persistentKeystore)) {
+    Copy-Item -LiteralPath $persistentKeystore -Destination $debugKeystore
+}
 if (-not (Test-Path -LiteralPath $debugKeystore)) {
     & $keytoolExe -genkeypair -noprompt -storetype PKCS12 -keystore $debugKeystore -storepass android -alias androiddebugkey -keypass android -dname 'CN=Controller Bridge Debug,O=Controller Bridge,C=BR' -keyalg RSA -keysize 2048 -validity 10000
     if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar a chave de debug local.' }
 }
+if (!(Test-Path -LiteralPath $persistentKeystore)) {
+    New-Item -ItemType Directory -Force -Path $signingHome | Out-Null
+    Copy-Item -LiteralPath $debugKeystore -Destination $persistentKeystore
+}
+$versionMatch = [regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $projectRoot 'app\build.gradle')), "versionName\s+'(\d+\.\d+\.\d+)'")
+if (!$versionMatch.Success) { throw 'Versão Android ausente.' }
+$version = $versionMatch.Groups[1].Value
 Push-Location $projectRoot
 try {
     & $gradleBat --offline --no-daemon "-Pandroid.aapt2FromMavenOverride=$aapt2" :app:assemblePtBrDebug :app:assembleEnDebug
@@ -50,6 +66,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'As verificações de mapeamento falharam.' }
     & $javaExe -cp $testOutput com.controllerbridge.app.WifiSecureChannelSelfTest
     if ($LASTEXITCODE -ne 0) { throw 'As verificações do canal Wi-Fi falharam.' }
+    & $javacExe -encoding UTF-8 -d $testOutput (Join-Path $projectRoot 'app\src\main\java\com\controllerbridge\app\AxisCaptureSelector.java') (Join-Path $projectRoot 'app\src\test\java\com\controllerbridge\app\AxisCaptureSelectorSelfTest.java')
+    if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar as verificações de captura de eixos.' }
+    & $javaExe -cp $testOutput com.controllerbridge.app.AxisCaptureSelectorSelfTest
+    if ($LASTEXITCODE -ne 0) { throw 'As verificações de captura de eixos falharam.' }
 
     $apkRoot = Join-Path $projectRoot 'app\build\outputs\apk'
     $builtApks = @(Get-ChildItem -LiteralPath $apkRoot -Recurse -Filter '*.apk' -ErrorAction Stop)
@@ -59,8 +79,8 @@ try {
     if ($enApk.Count -ne 1) { throw "Esperado exatamente um APK EN; encontrados $($enApk.Count)." }
     $dist = Join-Path $projectRoot 'dist'
     New-Item -ItemType Directory -Force -Path $dist | Out-Null
-    $ptDeliverable = Join-Path $dist 'ControllerBridge-Android-PT-BR-v0.5.1.apk'
-    $enDeliverable = Join-Path $dist 'ControllerBridge-Android-EN-v0.5.1.apk'
+    $ptDeliverable = Join-Path $dist "ControllerBridge-Android-PT-BR-v$version.apk"
+    $enDeliverable = Join-Path $dist "ControllerBridge-Android-EN-v$version.apk"
     Copy-Item -LiteralPath $ptApk[0].FullName -Destination $ptDeliverable -Force
     Copy-Item -LiteralPath $enApk[0].FullName -Destination $enDeliverable -Force
     $oldGeneric = Join-Path $dist 'ControllerBridge-android.apk'

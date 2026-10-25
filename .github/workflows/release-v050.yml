@@ -27,8 +27,8 @@ jobs:
         with:
           name: windows-packages
           path: |
-            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.6.0.zip
-            artifacts/windows/ControllerBridge-Windows-EN-v0.6.0.zip
+            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.6.1.zip
+            artifacts/windows/ControllerBridge-Windows-EN-v0.6.1.zip
           if-no-files-found: error
           retention-days: 2
 
@@ -37,7 +37,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-      github.event.head_commit.message == 'Release Controller Bridge v0.6.0')
+      github.event.head_commit.message == 'Release Controller Bridge v0.6.1')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
@@ -52,8 +52,8 @@ jobs:
           test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 2
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v0.6.0
-          name: Controller Bridge v0.6.0
+          tag_name: v0.6.1
+          name: Controller Bridge v0.6.1
           target_commitish: main
           draft: false
           prerelease: false
@@ -62,9 +62,9 @@ jobs:
           files: release-assets/*
           body: |
             ## English
-            Windows 0.6.0 replaces the dashboard layout with a dedicated controller editor: player tabs, physical and virtual controller selectors, mapping groups around a large outline controller, live cyan input highlights, and separate General, Connection and Sensors pages. Changes to output and mappings synchronize with Android. Windows packages are available in PT-BR and English. Android packages are unchanged; see v0.5.1 for the APKs. SHA256SUMS.txt contains checksums for both Windows packages.
+            Windows 0.6.1 replaces the dashboard layout with a dedicated controller editor: player tabs, physical and virtual controller selectors, mapping groups around a large outline controller, live cyan input highlights, and separate General, Connection and Sensors pages. Changes to output and mappings synchronize with Android. Windows packages are available in PT-BR and English. Android 0.6.1 packages are published separately after the mobile build checks. SHA256SUMS.txt contains checksums for both Windows packages.
 
             ## Português
-            O Windows 0.6.0 substitui o layout do painel por um editor dedicado: abas por jogador, seletores de controle físico e virtual, grupos de mapeamento ao redor de um controle grande desenhado em contorno, comandos destacados em ciano e páginas separadas de Geral, Conexão e Sensores. As alterações de saída e mapeamento são sincronizadas com o Android. Os pacotes Windows estão em PT-BR e inglês. Os APKs Android não mudaram; consulte a v0.5.1. SHA256SUMS.txt contém os hashes dos dois pacotes Windows.
+            O Windows 0.6.1 substitui o layout do painel por um editor dedicado: abas por jogador, seletores de controle físico e virtual, grupos de mapeamento ao redor de um controle grande desenhado em contorno, comandos destacados em ciano e páginas separadas de Geral, Conexão e Sensores. As alterações de saída e mapeamento são sincronizadas com o Android. Os pacotes Windows estão em PT-BR e inglês. Os APKs Android 0.6.1 são publicados separadamente após as verificações do build mobile. SHA256SUMS.txt contém os hashes dos dois pacotes Windows.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

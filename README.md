@@ -8,14 +8,14 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 
 ### Downloads
 
-- **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-PT-BR-v0.5.1.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-EN-v0.5.1.apk)
-- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-PT-BR-v0.6.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-EN-v0.6.0.zip)
+- **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-PT-BR-v0.6.1.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-EN-v0.6.1.apk)
+- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-PT-BR-v0.6.1.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-EN-v0.6.1.zip)
 
 Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
 
 ### Windows editor
 
-Actual v0.6.0 Windows screenshots, with two simulated controllers for the interface check. Select a player above, then choose Xbox 360 or DualShock 4 output. Axis fields show live readings; edit axis mappings in Android.
+Actual v0.6.1 Windows screenshots, with two simulated controllers for the interface check. Select a player above, then choose Xbox 360 or DualShock 4 output. Axis fields show live readings; edit axis mappings in Android.
 
 ![DualShock 4 editor](product/shared-assets/windows-editor-ps4.png)
 
@@ -34,13 +34,17 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Requirements
 
 - Android 8.0 or later with Bluetooth gamepad support.
-- Windows 11 x64. The Windows 0.6.0 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
+- Windows 11 x64. The Windows 0.6.1 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
 - The official signed ViGEmBus installer and required license notices are included. If the driver is missing, first start asks before opening its visible installer and Windows UAC; cancelling stops startup.
 - For USB: a data USB cable and Android USB debugging. Setup finds Android SDK Platform Tools (`adb`) automatically. If missing, it opens Google's official download page for your terms acceptance and asks where you extracted `adb.exe`; SDK tools are not bundled or downloaded silently.
 
+### Android 0.6.1 update
+
+The old v0.5.1 signing key was not available in the retained project files. The v0.6.1 APK uses a different certificate, so Android cannot install it over v0.5.1. Uninstalling the old app deletes its saved profiles and pairing settings. Preserve anything you need before reinstalling. The new signing key is retained separately from temporary build files for future updates.
+
 ### Install
 
-1. Download and install the Android APK. The Android APK links above remain on v0.5.1; this update only changes the Windows host.
+1. Download and install the Android APK. Android 0.6.1 adds separate Connection, Controllers and Live input pages, player selectors and live Xbox/DS4 diagrams.
 2. Pair the PS4, Xbox or another compatible Bluetooth controller with the phone in Android Bluetooth settings.
 3. Extract the entire Windows ZIP and open the **ControllerBridge.exe** at the top level. Choose USB (press Enter) or Wi-Fi (type `2`). USB is the default because it usually has lower latency; the dashboard opens and waits even before a phone is connected. The host automatically prepares ADB reverse when you connect and authorize the phone. Wi-Fi shows the PC IP, port **47653**, and pairing code in the dashboard. The private .NET runtime is inside this single EXE. Keep the extracted folders and files beside it; the verified client library, driver setup files and license notices are included. Driver installation is visible and requires your approval.
 4. In Android, choose the same connection mode and tap **Connect to PC**. In the PC dashboard, select a controller, choose Xbox 360 or DualShock 4 output, and click a button in the controller diagram to remap it from the phone.
@@ -96,14 +100,14 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 
 ### Downloads
 
-- **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-PT-BR-v0.5.1.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-EN-v0.5.1.apk)
-- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-PT-BR-v0.6.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-EN-v0.6.0.zip)
+- **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-PT-BR-v0.6.1.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-EN-v0.6.1.apk)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-PT-BR-v0.6.1.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-EN-v0.6.1.zip)
 
 Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
 
 ### Editor Windows
 
-Capturas reais do Windows v0.6.0, com dois controles simulados para conferir a interface. Escolha o jogador no topo e selecione a saída Xbox 360 ou DualShock 4. Os campos de eixos mostram leituras ao vivo; altere o mapeamento dos eixos no Android.
+Capturas reais do Windows v0.6.1, com dois controles simulados para conferir a interface. Escolha o jogador no topo e selecione a saída Xbox 360 ou DualShock 4. Os campos de eixos mostram leituras ao vivo; altere o mapeamento dos eixos no Android.
 
 ![Editor DualShock 4](product/shared-assets/windows-editor-ps4.png)
 
@@ -122,13 +126,17 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Requisitos
 
 - Android 8.0 ou superior com suporte a controles Bluetooth.
-- Windows 11 x64. O ZIP Windows 0.6.0 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
+- Windows 11 x64. O ZIP Windows 0.6.1 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
 - O instalador oficial assinado do ViGEmBus e os avisos de licença exigidos estão incluídos. Se faltar o driver, a primeira abertura pergunta antes de mostrar seu instalador e o UAC do Windows; cancelar interrompe a abertura.
 - Para USB: cabo de dados e depuração USB do Android. A preparação localiza Android SDK Platform Tools (`adb`) automaticamente. Se faltar, ela abre a página oficial da Google para seu aceite dos termos e pede onde você extraiu `adb.exe`; as ferramentas SDK não são incluídas nem baixadas silenciosamente.
 
+### Atualização Android 0.6.1
+
+A chave de assinatura da v0.5.1 não estava disponível nos arquivos preservados do projeto. O APK v0.6.1 usa outro certificado e não pode ser instalado por cima da v0.5.1. Desinstalar o app antigo apaga os perfis e pareamentos salvos. Preserve o que precisar antes de reinstalar. A nova chave foi guardada separadamente dos arquivos temporários para as próximas atualizações.
+
 ### Instalar
 
-1. Baixe e instale o APK Android. Os links dos APKs Android acima continuam na v0.5.1; esta atualização muda somente o host Windows.
+1. Baixe e instale o APK Android. O Android 0.6.1 traz páginas separadas de Conexão, Controles e Ao vivo, seleção por jogador e desenhos Xbox/DS4 com entrada em tempo real.
 2. Pareie o controle de PS4, Xbox ou outro controle Bluetooth compatível com o celular pelas configurações Bluetooth do Android.
 3. Extraia o ZIP Windows inteiro e abra **ControllerBridge.exe** na raiz. Escolha USB (pressione Enter) ou Wi-Fi (digite `2`). USB é o padrão por normalmente ter menos latência; o painel abre e aguarda mesmo antes de conectar o celular. O host prepara o ADB reverse automaticamente quando você conectar e autorizar o aparelho. No Wi-Fi, o painel mostra o IP do PC, a porta **47653** e o código de pareamento. O runtime privado do .NET está dentro desse único EXE. Mantenha as pastas e arquivos extraídos ao lado dele; a biblioteca cliente verificada, os arquivos de preparação do driver e os avisos de licença estão incluídos. A instalação do driver é visível e depende da sua confirmação.
 4. No Android, escolha o mesmo modo de conexão e toque em **Conectar ao PC**. No painel do PC, selecione o controle, escolha a saída Xbox 360 ou DualShock 4 e clique em um botão do desenho para remapeá-lo pelo celular.
