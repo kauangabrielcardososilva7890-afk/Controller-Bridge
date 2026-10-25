@@ -519,7 +519,6 @@ public sealed class DashboardForm : Form
         {
             var output = _output.SelectedIndex == 1 ? "ds4" : "xbox360";
             var gyroEnabled = output == "ds4" && _gyro.Checked;
-            if (snapshot.Output == output && snapshot.GyroEnabled == gyroEnabled) return;
             _host.SetControllerOutput(snapshot, output, gyroEnabled);
             _mappingHint.Text = T("Perfil atualizado e sincronizado com o celular.", "Profile updated and synced to the phone.");
         }
