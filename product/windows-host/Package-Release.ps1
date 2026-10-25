@@ -19,7 +19,7 @@ function Assert-PackagedDashboard([string]$Executable) {
     $errorFile = [IO.Path]::GetTempFileName()
     $process = $null
     try {
-        $process = Start-Process -FilePath $Executable -ArgumentList @('--prepared','--usb','--port','47654') -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile -PassThru
+        $process = Start-Process -FilePath $Executable -ArgumentList @('--prepared','--diagnostic','--usb','--port','47654') -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile -PassThru
         $deadline = [DateTime]::UtcNow.AddSeconds(15)
         do {
             Start-Sleep -Milliseconds 250
