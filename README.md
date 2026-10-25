@@ -9,9 +9,17 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 ### Downloads
 
 - **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-PT-BR-v0.5.1.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-EN-v0.5.1.apk)
-- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.3/ControllerBridge-Windows-PT-BR-v0.5.3.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.3/ControllerBridge-Windows-EN-v0.5.3.zip)
+- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-PT-BR-v0.6.0.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-EN-v0.6.0.zip)
 
 Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
+
+### Windows editor
+
+Actual v0.6.0 Windows screenshots, with two simulated controllers for the interface check. Select a player above, then choose Xbox 360 or DualShock 4 output. Axis fields show live readings; edit axis mappings in Android.
+
+![DualShock 4 editor](product/shared-assets/windows-editor-ps4.png)
+
+![Xbox editor](product/shared-assets/windows-editor-xbox.png)
 
 ### How it works
 
@@ -26,7 +34,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Requirements
 
 - Android 8.0 or later with Bluetooth gamepad support.
-- Windows 11 x64. The Windows 0.5.3 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
+- Windows 11 x64. The Windows 0.6.0 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
 - The official signed ViGEmBus installer and required license notices are included. If the driver is missing, first start asks before opening its visible installer and Windows UAC; cancelling stops startup.
 - For USB: a data USB cable and Android USB debugging. Setup finds Android SDK Platform Tools (`adb`) automatically. If missing, it opens Google's official download page for your terms acceptance and asks where you extracted `adb.exe`; SDK tools are not bundled or downloaded silently.
 
@@ -47,7 +55,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Connect by Wi-Fi
 
 1. Connect the phone and PC to the same local network and open **ControllerBridge.exe**. Type `2` for Wi-Fi; driver setup, if needed, asks for approval first.
-2. The PC dashboard shows active IPv4 addresses, port `47653`, and the 32-character pairing code. In the Android app, choose **Wi-Fi**, enter the PC's local IP and the code, then connect.
+2. Open **Connection** in the sidebar. It shows active IPv4 addresses, port `47653`, and the 32-character pairing code. In the Android app, choose **Wi-Fi**, enter the PC's local IP and the code, then connect.
 3. If Windows Firewall asks, allow the app on **private networks only**. The host does not add firewall rules automatically. Keep the pairing code private; Android saves it encrypted in Android Keystore for that PC.
 
 Wi-Fi is convenient but can have more variable latency than USB, depending on the network. The Wi-Fi messages are mutually authenticated and encrypted. The Android and Windows sides must use the same transport. Minimize the dashboard to keep it running in the background; type `stop` or `parar` in the console to stop it. To reset pairing, close the host and delete `%LOCALAPPDATA%\ControllerBridge\pairing.key`, then restart it and enter the new code in Android.
@@ -55,7 +63,7 @@ Wi-Fi is convenient but can have more variable latency than USB, depending on th
 ### Features
 
 - Multiple controllers connected to the phone at the same time, each with an independent profile and output selection.
-- Windows dashboard with horizontal player tabs, a transparent controller diagram, live button highlights, per-controller Xbox 360 / DualShock 4 output selection, and button remapping initiated from the PC.
+- Dedicated Controls editor with player tabs, mapping groups around a large transparent controller, cyan live input highlights, per-controller Xbox 360 / DualShock 4 output selection, and separate General, Connection and Sensors pages. Button remapping starts on the PC; axis remapping is configured on Android.
 - Automatic standard mapping, plus individual button remapping, axis reassignment, inversion and calibration.
 - Xbox 360 or DualShock 4 virtual output selected per controller.
 - Per-profile DS4 motion forwarding toggle when Android exposes compatible controller sensors; the Windows host also exposes motion locally over UDP at `127.0.0.1:26760` for compatible emulator providers. The UDP endpoint starts only while DS4 motion is enabled.
@@ -89,9 +97,17 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 ### Downloads
 
 - **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-PT-BR-v0.5.1.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.1/ControllerBridge-Android-EN-v0.5.1.apk)
-- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.3/ControllerBridge-Windows-PT-BR-v0.5.3.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.5.3/ControllerBridge-Windows-EN-v0.5.3.zip)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-PT-BR-v0.6.0.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.0/ControllerBridge-Windows-EN-v0.6.0.zip)
 
 Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
+
+### Editor Windows
+
+Capturas reais do Windows v0.6.0, com dois controles simulados para conferir a interface. Escolha o jogador no topo e selecione a saída Xbox 360 ou DualShock 4. Os campos de eixos mostram leituras ao vivo; altere o mapeamento dos eixos no Android.
+
+![Editor DualShock 4](product/shared-assets/windows-editor-ps4.png)
+
+![Editor Xbox](product/shared-assets/windows-editor-xbox.png)
 
 ### Como funciona
 
@@ -106,7 +122,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Requisitos
 
 - Android 8.0 ou superior com suporte a controles Bluetooth.
-- Windows 11 x64. O ZIP Windows 0.5.3 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
+- Windows 11 x64. O ZIP Windows 0.6.0 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
 - O instalador oficial assinado do ViGEmBus e os avisos de licença exigidos estão incluídos. Se faltar o driver, a primeira abertura pergunta antes de mostrar seu instalador e o UAC do Windows; cancelar interrompe a abertura.
 - Para USB: cabo de dados e depuração USB do Android. A preparação localiza Android SDK Platform Tools (`adb`) automaticamente. Se faltar, ela abre a página oficial da Google para seu aceite dos termos e pede onde você extraiu `adb.exe`; as ferramentas SDK não são incluídas nem baixadas silenciosamente.
 
@@ -127,7 +143,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Conectar por Wi-Fi
 
 1. Conecte o celular e o PC à mesma rede local e abra **ControllerBridge.exe**. Digite `2` para Wi-Fi; se faltar o driver, a preparação pede confirmação antes de instalá-lo.
-2. O painel do PC mostra os endereços IPv4 ativos, a porta `47653` e o código de pareamento de 32 caracteres. No app Android, escolha **Wi-Fi**, informe o IP local do PC e o código, e conecte.
+2. Abra **Conexão** na barra lateral. A página mostra os endereços IPv4 ativos, a porta `47653` e o código de pareamento de 32 caracteres. No app Android, escolha **Wi-Fi**, informe o IP local do PC e o código, e conecte.
 3. Se o Firewall do Windows perguntar, permita o programa **somente em redes privadas**. O host não cria regras de firewall automaticamente. Mantenha o código privado; o Android o salva cifrado no Android Keystore para esse PC.
 
 O Wi-Fi é prático, mas pode ter latência mais variável que o USB, dependendo da rede. As mensagens Wi-Fi são autenticadas nos dois sentidos e criptografadas. O Android e o Windows precisam usar o mesmo modo. Minimize o painel para deixá-lo funcionando em segundo plano; digite `stop` ou `parar` no console para encerrar. Para refazer o pareamento, feche o host, apague `%LOCALAPPDATA%\ControllerBridge\pairing.key`, reinicie-o e informe o novo código no Android.
@@ -135,7 +151,7 @@ O Wi-Fi é prático, mas pode ter latência mais variável que o USB, dependendo
 ### Recursos
 
 - Vários controles conectados ao celular ao mesmo tempo, cada um com perfil e saída independentes.
-- Painel Windows com abas horizontais por jogador, desenho transparente do controle, botões destacados em tempo real, escolha da saída Xbox 360 / DualShock 4 por controle e remapeamento iniciado pelo PC.
+- Editor de Controles com abas por jogador, grupos de mapeamento ao redor de um controle grande em contorno, comandos destacados em ciano e páginas separadas de Geral, Conexão e Sensores. O remapeamento de botões pode começar no PC; o remapeamento de eixos é configurado no Android.
 - Mapeamento padrão automático, remapeamento individual de botões, troca de eixos, inversão e calibração.
 - Saída virtual Xbox 360 ou DualShock 4 selecionada por controle.
 - Opção por perfil para encaminhar o movimento do DS4 quando Android expõe sensores compatíveis.

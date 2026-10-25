@@ -28,8 +28,8 @@ function Assert-PackagedDashboard([string]$Executable) {
                 $details = ((Get-Content -Raw -LiteralPath $outputFile) + (Get-Content -Raw -LiteralPath $errorFile)).Trim()
                 throw "Packaged dashboard exited before opening (exit $($process.ExitCode)): $details"
             }
-        } while ($process.MainWindowTitle -ne 'Controller Bridge' -and [DateTime]::UtcNow -lt $deadline)
-        if ($process.MainWindowTitle -ne 'Controller Bridge') { throw 'Packaged dashboard did not create its main window within 15 seconds.' }
+        } while ($process.MainWindowTitle -notlike '*Controller Bridge*' -and [DateTime]::UtcNow -lt $deadline)
+        if ($process.MainWindowTitle -notlike '*Controller Bridge*') { throw 'Packaged dashboard did not create its main window within 15 seconds.' }
     }
     finally {
         if ($process -and !$process.HasExited) {
