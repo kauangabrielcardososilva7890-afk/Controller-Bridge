@@ -6,9 +6,9 @@
 
 ### Download and requirements
 
-- Download the latest `ControllerBridge-android.apk` for Android and `ControllerBridge.exe` for Windows from the GitHub Releases page.
+- Download the Windows ZIP for your preferred language: `ControllerBridge-Windows-PT-BR-v0.3.0.zip` or `ControllerBridge-Windows-EN-v0.3.0.zip`. Download the Android package from the same release. Extract the whole Windows ZIP before running `ControllerBridge.exe`; keep its DLL and runtime configuration files together.
 - Windows 11 x64 and the .NET 8 Runtime are required.
-- Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. Use `--lang en` or `--lang pt` to choose the terminal language; otherwise it follows Windows language.
+- Install the [official ViGEmBus driver](https://github.com/nefarius/ViGEmBus/releases). Download the [Nefarius.ViGEm.Client NuGet package](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), open the `.nupkg` as a ZIP, and copy `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` beside `ControllerBridge.exe`. The PT-BR package starts in Portuguese and the EN package starts in English; `--lang en` or `--lang pt` overrides that choice. Source builds with `DefaultLanguage=auto` follow Windows language.
 - On Android, pair the PS4, Xbox, or other supported Bluetooth gamepad in system Bluetooth settings.
 
 ### Connect over USB
@@ -43,6 +43,8 @@ Pairing authenticates both devices and encrypts/authenticates each input and pro
 
 Install the .NET 8 SDK and run `product/windows-host/Build.ps1`. The output is `ControllerBridge.exe`.
 
+Run `product/windows-host/Package-Release.ps1` to generate both language ZIPs and `SHA256SUMS.txt` under `product/windows-host/artifacts`. The script builds version 0.3.0, checks each default language and its override, and runs self-tests before packaging. It does not publish anything. `Build.ps1 -DefaultLanguage pt-BR` or `-DefaultLanguage en` builds one specific variant; the default is `auto`. Use `ControllerBridge.exe --version` to inspect the application version.
+
 ---
 
 ## Português
@@ -51,9 +53,9 @@ Install the .NET 8 SDK and run `product/windows-host/Build.ps1`. The output is `
 
 ### Download e requisitos
 
-- Baixe o `ControllerBridge-android.apk` para Android e o `ControllerBridge.exe` para Windows mais recentes na página Releases do GitHub.
-- É necessário Windows 11 x64 e .NET 8 Desktop Runtime.
-- Instale o [driver oficial ViGEmBus](https://github.com/nefarius/ViGEmBus/releases). Baixe o [pacote NuGet Nefarius.ViGEm.Client](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), abra o `.nupkg` como ZIP e copie `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` para junto de `ControllerBridge.exe`. Use `--lang pt` ou `--lang en` para escolher o idioma do terminal; sem essa opção, ele acompanha o idioma do Windows.
+- Baixe o ZIP Windows do idioma desejado: `ControllerBridge-Windows-PT-BR-v0.3.0.zip` ou `ControllerBridge-Windows-EN-v0.3.0.zip`. Baixe o pacote Android da mesma versão. Extraia o ZIP Windows inteiro antes de executar `ControllerBridge.exe`; mantenha as DLLs e os arquivos de configuração do runtime juntos.
+- É necessário Windows 11 x64 e o Runtime do .NET 8.
+- Instale o [driver oficial ViGEmBus](https://github.com/nefarius/ViGEmBus/releases). Baixe o [pacote NuGet Nefarius.ViGEm.Client](https://www.nuget.org/packages/Nefarius.ViGEm.Client/1.21.256), abra o `.nupkg` como ZIP e copie `lib/netstandard2.0/Nefarius.ViGEm.Client.dll` para junto de `ControllerBridge.exe`. O pacote PT-BR inicia em português e o pacote EN inicia em inglês; use `--lang pt` ou `--lang en` para alterar essa escolha. Builds do código-fonte com `DefaultLanguage=auto` acompanham o idioma do Windows.
 - No Android, pareie o controle de PS4, Xbox ou outro controle Bluetooth compatível nas configurações do sistema.
 
 ### Conectar por USB
@@ -87,4 +89,6 @@ O pareamento autentica os dois dispositivos e criptografa/autentica cada mensage
 ### Compilar do código-fonte
 
 Instale o .NET 8 SDK e execute `product/windows-host/Build.ps1`. O resultado é `ControllerBridge.exe`.
+
+Execute `product/windows-host/Package-Release.ps1` para gerar os dois ZIPs de idioma e `SHA256SUMS.txt` em `product/windows-host/artifacts`. O script compila a versão 0.3.0, confere o idioma inicial e a troca manual de cada variante e executa os testes antes de empacotar. Ele não publica nada. `Build.ps1 -DefaultLanguage pt-BR` ou `-DefaultLanguage en` compila uma variante específica; o padrão é `auto`. Use `ControllerBridge.exe --version` para conferir a versão do aplicativo.
 
