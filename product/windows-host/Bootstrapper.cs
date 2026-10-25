@@ -6,7 +6,7 @@ public static class Bootstrapper
 {
     public static async Task<bool> PrepareAsync(bool wifi, bool diagnostic, bool english)
     {
-        var script = Path.Combine(AppContext.BaseDirectory, "Bootstrap", "Prepare.ps1");
+        var script = Path.Combine(ApplicationPaths.BaseDirectory, "Bootstrap", "Prepare.ps1");
         if (!File.Exists(script)) return true; // Source/developer builds keep their existing startup.
         var powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
         var start = new ProcessStartInfo(powershell) { UseShellExecute = false };

@@ -19,6 +19,7 @@ public static class SelfTests
             Directory.CreateDirectory(temporary);
             TestStateAndProjection();
             TestLanguageSelection();
+            TestApplicationPaths();
             TestStartupMode();
             TestUsbReverseDeviceParsing();
             TestMotionParsingAndReport();
@@ -46,6 +47,14 @@ public static class SelfTests
             if (resolved.StartsWith(Path.Combine(temporaryRoot, "controller-bridge-tests-"), StringComparison.OrdinalIgnoreCase) && Directory.Exists(resolved))
                 Directory.Delete(resolved, true);
         }
+    }
+
+    private static void TestApplicationPaths()
+    {
+        const string executable = @"C:\apps\ControllerBridge\ControllerBridge.exe";
+        const string extractedBase = @"C:\Users\User\AppData\Local\Temp\.net\ControllerBridge\bundle";
+        Check(ApplicationPaths.ResolveBaseDirectory(executable, extractedBase) == @"C:\apps\ControllerBridge", "Packaged content must resolve beside the executable, not in the bundle extraction cache.");
+        Check(ApplicationPaths.ResolveBaseDirectory(null, extractedBase) == extractedBase, "Framework-dependent development runs must retain their runtime base directory.");
     }
 
     private static void TestStateAndProjection()

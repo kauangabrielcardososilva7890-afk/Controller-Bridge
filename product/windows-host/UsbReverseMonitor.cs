@@ -76,7 +76,7 @@ public sealed class UsbReverseMonitor(int port, bool english, Action<string> log
         candidates.AddRange(pathAdb);
         foreach (var sdk in new[] { Environment.GetEnvironmentVariable("ANDROID_HOME"), Environment.GetEnvironmentVariable("ANDROID_SDK_ROOT"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Android", "Sdk") })
             if (!string.IsNullOrWhiteSpace(sdk)) candidates.Add(Path.Combine(sdk, "platform-tools", "adb.exe"));
-        candidates.Add(Path.Combine(AppContext.BaseDirectory, "platform-tools", "adb.exe"));
+        candidates.Add(Path.Combine(ApplicationPaths.BaseDirectory, "platform-tools", "adb.exe"));
 
         var setupPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "setup.json");
         if (File.Exists(setupPath))

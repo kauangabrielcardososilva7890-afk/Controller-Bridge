@@ -29,8 +29,8 @@ internal sealed class ControllerDiagram : Control
         var ox = (ClientSize.Width - ViewWidth * scale) / 2f; var oy = (ClientSize.Height - ViewHeight * scale) / 2f;
         g.TranslateTransform(ox, oy - ViewTop * scale); g.ScaleTransform(scale, scale);
         var ds4 = _snapshot?.Output == "ds4";
-        using var body = new LinearGradientBrush(new RectangleF(20, 100, 460, 220), Color.FromArgb(36, 50, 65), Color.FromArgb(23, 30, 40), LinearGradientMode.Vertical);
-        using var edge = new Pen(Color.FromArgb(100, 140, 170), 1.5f);
+        using var body = new SolidBrush(BackColor);
+        using var edge = new Pen(Color.FromArgb(118, 157, 191), 2f);
         using var path = new GraphicsPath();
         if (ds4)
         {
@@ -49,7 +49,7 @@ internal sealed class ControllerDiagram : Control
         }
         path.CloseFigure(); g.FillPath(body, path); g.DrawPath(edge, path);
         // A subtle inner seam gives the shell depth without obscuring live inputs.
-        using (var seam = new Pen(Color.FromArgb(44, 65, 83), 1))
+        using (var seam = new Pen(Color.FromArgb(72, 103, 132), 1.2f))
         {
             g.DrawBezier(seam, 55, 277, 80, 239, 102, 252, 131, 246);
             g.DrawBezier(seam, 445, 277, 420, 239, 398, 252, 369, 246);

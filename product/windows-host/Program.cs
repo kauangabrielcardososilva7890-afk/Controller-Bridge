@@ -20,18 +20,18 @@ public static class Program
             if (args.Contains("--help")) { PrintHelp(english); return 0; }
             string Tr(string pt, string en) => english ? en : pt;
             var diagnostic = args.Contains("--diagnostic");
-            var packaged = File.Exists(Path.Combine(AppContext.BaseDirectory, "Bootstrap", "Prepare.ps1"));
+            var packaged = File.Exists(Path.Combine(ApplicationPaths.BaseDirectory, "Bootstrap", "Prepare.ps1"));
             var wifiMode = StartupMode.UseWifi(args, english, packaged);
             // Keep the entry-point thread on its original STA until Application.Run starts.
             // Awaiting setup here (before a WinForms synchronization context/message loop exists)
             // resumes Main on a pool MTA thread, which breaks Clipboard and other OLE APIs.
             if (!args.Contains("--probe") && !args.Contains("--prepared") && !Bootstrapper.PrepareAsync(wifiMode, diagnostic, english).GetAwaiter().GetResult()) return 1;
-            var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(AppContext.BaseDirectory, "Nefarius.ViGEm.Client.dll");
+            var assemblyPath = Argument(args, "--vigem-client") ?? Path.Combine(ApplicationPaths.BaseDirectory, "Nefarius.ViGEm.Client.dll");
             var profileDirectory = Argument(args, "--profiles") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControllerBridge", "profiles");
             var port = int.Parse(Argument(args, "--port") ?? "47652");
             if (port is < 1 or > 65535) throw new ArgumentException(Tr("A porta precisa estar entre 1 e 65535.", "Port must be between 1 and 65535."));
             if (!diagnostic && !File.Exists(assemblyPath))
-                throw new FileNotFoundException(Tr("Coloque Nefarius.ViGEm.Client.dll ao lado do executável, informe --vigem-client <path> ou use --diagnostic.", "Place Nefarius.ViGEm.Client.dll beside the executable, pass --vigem-client <path>, or use --diagnostic."), assemblyPath);
+                throw new FileNotFoundException(Tr($"Coloque Nefarius.ViGEm.Client.dll ao lado do executável, informe --vigem-client <caminho> ou use --diagnostic. Caminho procurado: {assemblyPath}", $"Place Nefarius.ViGEm.Client.dll beside the executable, pass --vigem-client <path>, or use --diagnostic. Searched path: {assemblyPath}"), assemblyPath);
             IOutputFactory factory = diagnostic ? new DiagnosticOutputFactory(Console.WriteLine) : new ViGEmOutputFactory(assemblyPath);
             using var outputs = new OutputPool(factory, diagnostic ? null : new WindowsXInputSlotProbe());
             if (args.Contains("--probe"))

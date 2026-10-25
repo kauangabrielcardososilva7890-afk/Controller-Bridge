@@ -27,8 +27,8 @@ jobs:
         with:
           name: windows-packages
           path: |
-            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.2.zip
-            artifacts/windows/ControllerBridge-Windows-EN-v0.5.2.zip
+            artifacts/windows/ControllerBridge-Windows-PT-BR-v0.5.3.zip
+            artifacts/windows/ControllerBridge-Windows-EN-v0.5.3.zip
           if-no-files-found: error
           retention-days: 2
 
@@ -37,7 +37,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-      github.event.head_commit.message == 'Fix USB startup waiting and publish v0.5.2')
+      github.event.head_commit.message == 'Release Controller Bridge v0.5.3')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7
@@ -52,8 +52,8 @@ jobs:
           test "$(find . -maxdepth 1 -type f -name '*.zip' | wc -l)" -eq 2
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: v0.5.2
-          name: Controller Bridge v0.5.2
+          tag_name: v0.5.3
+          name: Controller Bridge v0.5.3
           target_commitish: main
           draft: false
           prerelease: false
@@ -62,9 +62,9 @@ jobs:
           files: release-assets/*
           body: |
             ## English
-            Windows 0.5.2 keeps the host running while USB waits for an authorized Android phone and prepares ADB reverse automatically when the phone becomes available. Windows packages are available in PT-BR and English. Android packages are unchanged; see v0.5.1 for the APKs. SHA256SUMS.txt contains checksums for both Windows packages.
+            Windows 0.5.3 fixes a launch failure caused by bundled content resolving from the .NET extraction cache instead of the EXE directory. It also adds horizontal player tabs, a transparent controller diagram and clearer USB instructions. Windows packages are available in PT-BR and English. Android packages are unchanged; see v0.5.1 for the APKs. SHA256SUMS.txt contains checksums for both Windows packages.
 
             ## Português
-            O Windows 0.5.2 mantém o host aberto enquanto o USB aguarda um celular Android autorizado e prepara o ADB reverse automaticamente quando o celular fica disponível. Os pacotes Windows estão em PT-BR e inglês. Os APKs Android não mudaram; consulte a v0.5.1. SHA256SUMS.txt contém os hashes dos dois pacotes Windows.
+            O Windows 0.5.3 corrige uma falha que impedia a abertura porque arquivos externos eram procurados no cache temporário do .NET, em vez da pasta do EXE. Também traz abas horizontais por jogador, desenho transparente do controle e instruções USB mais claras. Os pacotes Windows estão em PT-BR e inglês. Os APKs Android não mudaram; consulte a v0.5.1. SHA256SUMS.txt contém os hashes dos dois pacotes Windows.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

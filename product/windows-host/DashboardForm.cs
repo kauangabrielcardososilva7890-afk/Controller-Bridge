@@ -9,12 +9,17 @@ public sealed class DashboardForm : Form
     private readonly HostServer _host;
     private readonly Action _stop;
     private readonly bool _wifiEnabled;
-    private readonly ListBox _controllers = new();
+    private readonly FlowLayoutPanel _playerTabs = new();
+    private readonly ComboBox _physicalInput = new();
+    private readonly Dictionary<string, Button> _navigationButtons = new(StringComparer.Ordinal);
+    private Panel? _detailsScroll;
+    private Control? _connectionSection;
+    private Control? _editorSection;
+    private Control? _motionSection;
     private readonly Label _connection = new();
     private readonly Label _network = new();
     private readonly Label _selectedName = new();
     private readonly Label _physicalStatus = new();
-    private readonly Label _emptyList = new();
     private readonly Label _mappingHint = new();
     private readonly ComboBox _output = new();
     private readonly CheckBox _gyro = new();
@@ -31,6 +36,10 @@ public sealed class DashboardForm : Form
     private string? _selectedKey;
     private bool _updating;
     private int _pendingPhoneConnections = -1;
+    private sealed record ControllerChoice(string Key, string Name)
+    {
+        public override string ToString() => Name;
+    }
 
     public DashboardForm(bool english, HostServer host, string[] localIps, bool wifiEnabled, int wifiPort, string pairingCode, Action stop)
     {
@@ -40,9 +49,14 @@ public sealed class DashboardForm : Form
         _wifiEnabled = wifiEnabled;
         Text = "Controller Bridge";
         StartPosition = FormStartPosition.CenterScreen;
+        try
+        {
+            if (Environment.ProcessPath is { } executablePath) Icon = Icon.ExtractAssociatedIcon(executablePath) ?? SystemIcons.Application;
+        }
+        catch (ArgumentException) { }
         AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
-        MinimumSize = new Size(1040, 640);
+        MinimumSize = new Size(980, 600);
         var workArea = Screen.FromPoint(Cursor.Position).WorkingArea;
         Size = new Size(Math.Min(1380, workArea.Width), Math.Min(920, workArea.Height));
         DoubleBuffered = true;
@@ -57,18 +71,19 @@ public sealed class DashboardForm : Form
         outer.Controls.Add(BuildHeader(), 0, 0);
 
         var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = BackColor, Padding = new Padding(0, 12, 0, 0) };
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 238));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         outer.Controls.Add(body, 0, 1);
-        body.Controls.Add(BuildControllerList(), 0, 0);
+        body.Controls.Add(BuildNavigation(), 0, 0);
         body.Controls.Add(BuildDetails(pairingCode), 1, 0);
+        SetActiveNavigation("controls");
 
         var ipText = localIps.Length == 0
             ? T("Nenhum IP local encontrado — conecte o PC e o celular à mesma rede.", "No local IP found — connect the PC and phone to the same network.")
             : string.Join("   ·   ", localIps);
         _network.Text = wifiEnabled
             ? $"{T("PORTA WI-FI", "WI-FI PORT")}  {wifiPort}     {T("IP DO PC", "PC IP")}  {ipText}\r\n{T("CÓDIGO DE PAREAMENTO", "PAIRING CODE")}  {pairingCode}     {T("Use o mesmo Wi-Fi no celular e no PC.", "Use the same Wi-Fi on the phone and PC.")}"
-            : T("MODO USB/ADB · 127.0.0.1:47652\r\nConecte o celular por USB, ative a depuração USB e autorize este PC.", "USB/ADB MODE · 127.0.0.1:47652\r\nConnect the phone by USB, enable USB debugging, and authorize this PC.");
+            : T("MODO USB · conexão por cabo\r\nNo celular, selecione USB. Não precisa digitar IP; autorize a depuração USB se solicitado.", "USB MODE · cable connection\r\nSelect USB on the phone. No IP is needed; authorize USB debugging if prompted.");
         ApplyConnectionCount(host.PhoneConnectionCount);
         _host.ControllerChanged += OnControllerChanged;
         _host.PhoneConnectionCountChanged += OnConnectionCountChanged;
@@ -93,7 +108,8 @@ public sealed class DashboardForm : Form
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
         var title = Label("CONTROLLER BRIDGE", 17, true, Color.White); title.Dock = DockStyle.Fill;
-        var subtitle = Label(T("Seu controle. Do celular para o jogo.", "Your controller. From phone to game."), 9, false, Color.FromArgb(144, 159, 177)); subtitle.Dock = DockStyle.Fill;
+        var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "";
+        var subtitle = Label(T($"Seu controle. Do celular para o jogo.  ·  v{version}", $"Your controller. From phone to game.  ·  v{version}"), 9, false, Color.FromArgb(144, 159, 177)); subtitle.Dock = DockStyle.Fill;
         _connection.Text = T("●  INICIANDO · abrindo a porta para o celular", "●  STARTING · opening the phone connection port");
         _connection.ForeColor = Color.FromArgb(249, 190, 74);
         _connection.Font = new Font("Segoe UI Semibold", 10);
@@ -104,100 +120,156 @@ public sealed class DashboardForm : Form
         return panel;
     }
 
-    private Control BuildControllerList()
+    private Control BuildNavigation()
     {
-        var panel = Card(); panel.Dock = DockStyle.Fill; panel.Padding = new Padding(14);
-        var heading = Label(T("CONTROLES / JOGADORES", "CONTROLLERS / PLAYERS"), 10, true, Color.FromArgb(142, 158, 177));
-        heading.Dock = DockStyle.Top; heading.Height = 28;
-        _controllers.Dock = DockStyle.Fill;
-        _controllers.BorderStyle = BorderStyle.None;
-        _controllers.BackColor = Color.FromArgb(23, 30, 40);
-        _controllers.ForeColor = Color.FromArgb(232, 238, 246);
-        _controllers.Font = new Font("Segoe UI", 10);
-        _controllers.IntegralHeight = false;
-        _controllers.DrawMode = DrawMode.OwnerDrawFixed;
-        _controllers.ItemHeight = 58;
-        _controllers.DrawItem += DrawControllerItem;
-        _controllers.SelectedIndexChanged += (_, _) => SelectControllerFromList();
-        _controllers.AccessibleName = T("Controles físicos conectados", "Connected physical controllers");
-        _emptyList.Text = T("Nenhum controle conectado\r\n\r\n1. Conecte o controle ao celular.\r\n2. Abra o app Controller Bridge.\r\n3. Conecte o app a este PC.", "No controllers connected\r\n\r\n1. Connect a controller to your phone.\r\n2. Open Controller Bridge.\r\n3. Connect the app to this PC.");
-        _emptyList.Dock = DockStyle.Fill; _emptyList.ForeColor = Color.FromArgb(144, 159, 177); _emptyList.Padding = new Padding(4, 24, 4, 0);
-        var listArea = new Panel { Dock = DockStyle.Fill };
-        listArea.Controls.Add(_controllers); listArea.Controls.Add(_emptyList);
-        panel.Controls.Add(listArea); panel.Controls.Add(heading);
+        var panel = Card(); panel.Dock = DockStyle.Fill; panel.Padding = new Padding(10, 14, 10, 10);
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, BackColor = panel.BackColor };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        for (var row = 1; row < 5; row++) layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var heading = Label(T("NAVEGAÇÃO", "NAVIGATION"), 9, true, Color.FromArgb(142, 158, 177)); heading.Dock = DockStyle.Fill;
+        layout.Controls.Add(heading, 0, 0);
+        var sections = new[]
+        {
+            (Id: "general", Icon: "⚙", Pt: "Geral", En: "General"),
+            (Id: "connection", Icon: "↔", Pt: "Conexão", En: "Connection"),
+            (Id: "controls", Icon: "🎮", Pt: "Controles", En: "Controls"),
+            (Id: "sensors", Icon: "◉", Pt: "Sensores", En: "Sensors")
+        };
+        for (var index = 0; index < sections.Length; index++)
+        {
+            var section = sections[index];
+            var button = ActionButton($"{section.Icon}   {T(section.Pt, section.En)}");
+            button.Dock = DockStyle.Fill; button.Margin = new Padding(0, 3, 0, 3); button.TextAlign = ContentAlignment.MiddleLeft;
+            button.Padding = new Padding(10, 0, 4, 0); button.Font = new Font("Segoe UI Semibold", 10f);
+            button.FlatAppearance.BorderSize = 0;
+            button.AccessibleName = T(section.Pt, section.En);
+            button.Click += (_, _) => { SetActiveNavigation(section.Id); NavigateTo(section.Id); };
+            _navigationButtons[section.Id] = button;
+            layout.Controls.Add(button, 0, index + 1);
+        }
+        panel.Controls.Add(layout);
         return panel;
+    }
+
+    private void SetActiveNavigation(string section)
+    {
+        foreach (var (id, button) in _navigationButtons)
+        {
+            var active = id == section;
+            button.BackColor = active ? Color.FromArgb(31, 82, 122) : Color.FromArgb(23, 30, 40);
+            button.ForeColor = active ? Color.FromArgb(131, 202, 255) : Color.FromArgb(204, 216, 229);
+            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(39, 59, 78);
+        }
+    }
+
+    private void NavigateTo(string section)
+    {
+        if (_detailsScroll == null) return;
+        var target = section switch
+        {
+            "connection" => _connectionSection,
+            "controls" => _editorSection,
+            "sensors" => _motionSection,
+            _ => null
+        };
+        if (target == null) _detailsScroll.AutoScrollPosition = Point.Empty;
+        else _detailsScroll.ScrollControlIntoView(target);
+    }
+
+    private Control BuildPlayerTabs()
+    {
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(2, 0, 2, 0) };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var heading = Label(T("JOGADORES", "PLAYERS"), 9, true, Color.FromArgb(142, 158, 177)); heading.Dock = DockStyle.Fill;
+        _playerTabs.Dock = DockStyle.Fill;
+        _playerTabs.FlowDirection = FlowDirection.LeftToRight;
+        _playerTabs.WrapContents = false;
+        _playerTabs.AutoScroll = true;
+        _playerTabs.AccessibleName = T("Abas dos jogadores", "Player tabs");
+        layout.Controls.Add(heading, 0, 0); layout.Controls.Add(_playerTabs, 0, 1);
+        return layout;
     }
 
     private Control BuildDetails(string pairingCode)
     {
         // Scroll the complete editor on short screens, keeping every mapping and motion row reachable.
-        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = Padding.Empty, Padding = new Padding(12, 0, 0, 0) };
+        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Margin = new Padding(0), Padding = new Padding(10, 0, 0, 0) };
+        _detailsScroll = scroll;
         var layout = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, RowCount = 3, BackColor = BackColor, Margin = Padding.Empty };
         scroll.Controls.Add(layout);
         void SizeDetails()
         {
-            var minimumHeight = (int)Math.Round(680 * DeviceDpi / 96f);
+            var minimumHeight = (int)Math.Round(780 * DeviceDpi / 96f);
             layout.Height = Math.Max(minimumHeight, scroll.ClientSize.Height);
         }
         scroll.Resize += (_, _) => SizeDetails();
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        var info = Card(); info.Dock = DockStyle.Fill; info.Padding = new Padding(14, 10, 14, 10);
+        var info = Card(); info.Dock = DockStyle.Fill; info.Padding = new Padding(14, 8, 14, 8); _connectionSection = info;
         var netHeader = Label(T("CONECTAR O CELULAR", "CONNECT YOUR PHONE"), 9.5f, true, Color.FromArgb(105, 183, 255));
         netHeader.Dock = DockStyle.Top; netHeader.Height = 21;
         _network.AutoSize = false; _network.Dock = DockStyle.Fill; _network.Font = new Font("Segoe UI", 9); _network.ForeColor = Color.FromArgb(218, 226, 237); _network.Padding = new Padding(0, 6, 0, 0);
         var copy = ActionButton(T("Copiar código", "Copy code")); copy.Dock = DockStyle.Right; copy.Width = 116;
-        copy.Enabled = _wifiEnabled;
+        copy.Visible = _wifiEnabled;
         copy.Click += (_, _) => { Clipboard.SetText(pairingCode); _mappingHint.Text = T("Código de pareamento copiado.", "Pairing code copied."); };
         info.Controls.Add(_network); info.Controls.Add(copy); info.Controls.Add(netHeader);
         layout.Controls.Add(info, 0, 0);
 
-        var editor = Card(); editor.Dock = DockStyle.Fill; editor.Padding = new Padding(12); editor.Margin = new Padding(0, 10, 0, 0);
-        var rows = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = editor.BackColor };
-        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+        var editor = Card(); editor.Dock = DockStyle.Fill; editor.Padding = new Padding(12); editor.Margin = new Padding(0, 10, 0, 0); _editorSection = editor;
+        var rows = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = editor.BackColor };
+        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
+        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
         rows.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
-        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+        rows.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         editor.Controls.Add(rows);
 
-        var settings = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2 };
-        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 216));
-        settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
-        settings.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _selectedName.Text = T("Selecione um controle", "Select a controller");
-        _selectedName.Font = new Font("Segoe UI Semibold", 12); _selectedName.ForeColor = Color.White; _selectedName.Dock = DockStyle.Fill; _selectedName.AutoEllipsis = true;
+        var tabs = BuildPlayerTabs(); tabs.Margin = new Padding(4, 0, 4, 2); rows.Controls.Add(tabs, 0, 0);
+
+        var settings = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3 };
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+        settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+        settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        settings.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        _selectedName.Text = T("CONTROLE FÍSICO", "PHYSICAL CONTROLLER");
+        _selectedName.Font = new Font("Segoe UI Semibold", 9); _selectedName.ForeColor = Color.FromArgb(142, 158, 177); _selectedName.Dock = DockStyle.Fill; _selectedName.AutoEllipsis = true;
         settings.Controls.Add(_selectedName, 0, 0);
-        _physicalStatus.Font = new Font("Segoe UI", 9); _physicalStatus.ForeColor = Color.FromArgb(144, 159, 177); _physicalStatus.Dock = DockStyle.Fill; _physicalStatus.AutoEllipsis = true;
-        settings.Controls.Add(_physicalStatus, 0, 1);
+        _physicalInput.DropDownStyle = ComboBoxStyle.DropDownList; _physicalInput.Dock = DockStyle.Fill; _physicalInput.BackColor = Color.FromArgb(31, 40, 52); _physicalInput.ForeColor = Color.White; _physicalInput.FlatStyle = FlatStyle.Flat; _physicalInput.AccessibleName = T("Controle físico", "Physical controller");
+        _physicalInput.DrawMode = DrawMode.OwnerDrawFixed; _physicalInput.ItemHeight = 22;
+        _physicalInput.DrawItem += (_, e) => DrawComboItem(_physicalInput, e);
+        _physicalInput.SelectedIndexChanged += (_, _) =>
+        {
+            if (!_updating && _physicalInput.SelectedItem is ControllerChoice choice) SelectControllerTab(choice.Key);
+        };
+        if (_items.Count == 0) { _physicalInput.Items.Add(T("Nenhum controle conectado", "No controller connected")); _physicalInput.SelectedIndex = 0; }
+        settings.Controls.Add(_physicalInput, 0, 1);
         var outputLabel = Label(T("SAÍDA VIRTUAL PARA O JOGO", "VIRTUAL OUTPUT TO THE GAME"), 9, true, Color.FromArgb(142, 158, 177)); outputLabel.Dock = DockStyle.Fill;
         settings.Controls.Add(outputLabel, 1, 0);
-        _output.DropDownStyle = ComboBoxStyle.DropDownList; _output.Items.AddRange(["Xbox 360 (XInput)", "DualShock 4"]); _output.Dock = DockStyle.Top; _output.BackColor = Color.FromArgb(31, 40, 52); _output.ForeColor = Color.White; _output.FlatStyle = FlatStyle.Flat; _output.AccessibleName = T("Saída virtual para o jogo", "Virtual output to the game");
+        _output.DropDownStyle = ComboBoxStyle.DropDownList; _output.Items.AddRange(["Xbox 360 (XInput)", "DualShock 4"]); _output.Dock = DockStyle.Fill; _output.BackColor = Color.FromArgb(31, 40, 52); _output.ForeColor = Color.White; _output.FlatStyle = FlatStyle.Flat; _output.AccessibleName = T("Saída virtual para o jogo", "Virtual output to the game");
         _output.DrawMode = DrawMode.OwnerDrawFixed;
         _output.ItemHeight = 22;
-        _output.DrawItem += (_, e) =>
-        {
-            using var background = new SolidBrush((e.State & DrawItemState.Selected) != 0 ? Color.FromArgb(43, 62, 82) : Color.FromArgb(31, 40, 52));
-            e.Graphics.FillRectangle(background, e.Bounds);
-            if (e.Index >= 0) TextRenderer.DrawText(e.Graphics, _output.Items[e.Index]?.ToString() ?? "", e.Font, Rectangle.Inflate(e.Bounds, -5, 0), _output.Enabled ? Color.White : Color.FromArgb(144, 159, 177), TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-            e.DrawFocusRectangle();
-        };
+        _output.DrawItem += (_, e) => DrawComboItem(_output, e);
         _output.SelectedIndexChanged += (_, _) => ChangeOutput(); settings.Controls.Add(_output, 1, 1);
-        rows.Controls.Add(settings, 0, 0);
+        _physicalStatus.Font = new Font("Segoe UI", 8.5f); _physicalStatus.ForeColor = Color.FromArgb(144, 159, 177); _physicalStatus.Dock = DockStyle.Fill; _physicalStatus.AutoEllipsis = true;
+        settings.Controls.Add(_physicalStatus, 0, 2); settings.SetColumnSpan(_physicalStatus, 2);
+        rows.Controls.Add(settings, 0, 1);
 
         var map = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2 };
-        map.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158));
+        map.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 162));
         map.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        map.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158));
+        map.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 162));
         map.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        map.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
+        map.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         map.Controls.Add(BuildMappingGroups((T("OMBRO ESQUERDO", "LEFT SHOULDER"), new[] { "l1", "l2" }), (T("DIRECIONAL", "DIRECTION PAD"), new[] { "dpad_up", "dpad_down", "dpad_left", "dpad_right" }), (T("ANALÓGICO ESQUERDO", "LEFT STICK"), new[] { "l3" })), 0, 0);
         map.Controls.Add(BuildMappingGroups((T("OMBRO DIREITO", "RIGHT SHOULDER"), new[] { "r1", "r2" }), (T("BOTÕES", "FACE BUTTONS"), new[] { "north", "west", "east", "south" }), (T("ANALÓGICO DIREITO", "RIGHT STICK"), new[] { "r3" })), 2, 0);
         map.SetRowSpan(map.GetControlFromPosition(0, 0)!, 2);
         map.SetRowSpan(map.GetControlFromPosition(2, 0)!, 2);
         var center = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
-        center.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); center.RowStyles.Add(new RowStyle(SizeType.Absolute, 26)); center.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        center.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); center.RowStyles.Add(new RowStyle(SizeType.Absolute, 22)); center.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         _diagram.Dock = DockStyle.Fill; _diagram.AccessibleName = T("Resposta ao vivo da saída virtual", "Live virtual output response"); _diagram.LogicalButtonClicked += RemapButton; center.Controls.Add(_diagram, 0, 0);
         var virtualHint = Label(T("CONTROLE VIRTUAL · resposta ao vivo", "VIRTUAL CONTROLLER · live response"), 8.5f, true, Color.FromArgb(142, 158, 177)); virtualHint.Dock = DockStyle.Fill; virtualHint.TextAlign = ContentAlignment.MiddleCenter;
         center.Controls.Add(virtualHint, 0, 1);
@@ -205,13 +277,13 @@ public sealed class DashboardForm : Form
         center.Controls.Add(_axes, 0, 2); map.Controls.Add(center, 1, 0);
         var systemButtons = BuildMappingGroups((T("SISTEMA", "SYSTEM"), new[] { "share", "ps", "options" }));
         map.Controls.Add(systemButtons, 1, 1);
-        rows.Controls.Add(map, 0, 1);
+        rows.Controls.Add(map, 0, 2);
 
-        var motion = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(12, 10, 8, 8), BackColor = Color.FromArgb(18, 25, 34), Margin = new Padding(0, 8, 0, 0) };
+        var motion = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(12, 8, 8, 6), BackColor = Color.FromArgb(18, 25, 34), Margin = new Padding(0, 6, 0, 0) }; _motionSection = motion;
         motion.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170)); motion.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _gyro.Text = T("Giroscópio DS4", "DS4 gyro"); _gyro.Dock = DockStyle.Fill; _gyro.ForeColor = Color.FromArgb(222, 231, 242); _gyro.CheckedChanged += (_, _) => ChangeOutput(); motion.Controls.Add(_gyro, 0, 0);
-        _motion.Dock = DockStyle.Fill; _motion.ForeColor = Color.FromArgb(153, 168, 185); _motion.Font = new Font("Segoe UI", 8.5f); motion.Controls.Add(_motion, 1, 0); rows.Controls.Add(motion, 0, 2);
-        _mappingHint.Dock = DockStyle.Fill; _mappingHint.ForeColor = Color.FromArgb(159, 194, 224); _mappingHint.Padding = new Padding(0, 8, 0, 0); rows.Controls.Add(_mappingHint, 0, 3);
+        _motion.Dock = DockStyle.Fill; _motion.ForeColor = Color.FromArgb(153, 168, 185); _motion.Font = new Font("Segoe UI", 8.5f); motion.Controls.Add(_motion, 1, 0); rows.Controls.Add(motion, 0, 3);
+        _mappingHint.Dock = DockStyle.Fill; _mappingHint.ForeColor = Color.FromArgb(159, 194, 224); _mappingHint.Padding = new Padding(0, 8, 0, 0); rows.Controls.Add(_mappingHint, 0, 4);
         layout.Controls.Add(editor, 0, 1);
         var tip = Label(T("Clique em um campo e pressione o botão no controle físico. Mantenha esta janela aberta enquanto joga.", "Click a field, then press a button on the physical controller. Keep this window open while playing."), 9, false, Color.FromArgb(161, 174, 190)); tip.Dock = DockStyle.Fill; tip.Padding = new Padding(4, 12, 4, 0); layout.Controls.Add(tip, 0, 2);
         SizeDetails();
@@ -234,19 +306,19 @@ public sealed class DashboardForm : Form
             system.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); system.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             return system;
         }
-        var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true, Margin = new Padding(0) };
+        var stack = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = false, Margin = new Padding(0) };
         foreach (var group in groups)
         {
-            var box = new TableLayoutPanel { ColumnCount = 2, RowCount = group.Buttons.Length + 1, AutoSize = false, Margin = new Padding(0, 0, 0, 9), Padding = new Padding(3), Width = 154, Height = 27 + group.Buttons.Length * 33 };
-            box.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52)); box.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            box.RowStyles.Add(new RowStyle(SizeType.Absolute, 21));
-            var title = Label(group.Title, 8, true, Color.FromArgb(142, 158, 177)); title.Dock = DockStyle.Fill; title.Height = 23; box.Controls.Add(title, 0, 0); box.SetColumnSpan(title, 2);
+            var box = new TableLayoutPanel { ColumnCount = 2, RowCount = group.Buttons.Length + 1, AutoSize = false, Margin = new Padding(0, 0, 0, 7), Padding = new Padding(3), Width = 154, Height = 25 + group.Buttons.Length * 30, BackColor = Color.FromArgb(26, 34, 45), BorderStyle = BorderStyle.FixedSingle };
+            box.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48)); box.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            box.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
+            var title = Label(group.Title, 9, true, Color.FromArgb(142, 158, 177)); title.Dock = DockStyle.Fill; title.Height = 23; box.Controls.Add(title, 0, 0); box.SetColumnSpan(title, 2);
             foreach (var logical in group.Buttons)
             {
                 var row = Array.IndexOf(group.Buttons, logical) + 1;
-                box.RowStyles.Add(new RowStyle(SizeType.Absolute, 33));
+                box.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
                 var caption = Label(logical, 9, true, Color.FromArgb(222, 231, 242)); caption.Dock = DockStyle.Fill; caption.TextAlign = ContentAlignment.MiddleLeft; _mappingLabels[logical] = caption;
-                var field = ActionButton("—"); field.Height = 29; field.Dock = DockStyle.Fill; field.Margin = new Padding(0, 2, 0, 2); field.Font = new Font("Segoe UI", 8.5f); field.FlatAppearance.BorderColor = Color.FromArgb(64, 83, 103); field.Click += (_, _) => RemapButton(logical); _mappingFields[logical] = field;
+                var field = ActionButton("—"); field.Height = 27; field.Dock = DockStyle.Fill; field.Margin = new Padding(0, 1, 0, 1); field.Font = new Font("Segoe UI", 8.5f); field.FlatAppearance.BorderColor = Color.FromArgb(64, 83, 103); field.Click += (_, _) => RemapButton(logical); _mappingFields[logical] = field;
                 box.Controls.Add(caption, 0, row); box.Controls.Add(field, 1, row);
             }
             stack.Controls.Add(box);
@@ -282,7 +354,6 @@ public sealed class DashboardForm : Form
         }
         if (membershipChanged) RebuildControllerList();
         else if (_selectedKey != null && _items.TryGetValue(_selectedKey, out var selected)) UpdateSelection(selected);
-        _controllers.Invalidate();
     }
     private void OnConnectionCountChanged(int count) => Interlocked.Exchange(ref _pendingPhoneConnections, count);
 
@@ -308,38 +379,68 @@ public sealed class DashboardForm : Form
     {
         var old = _selectedKey;
         var keys = _items.Keys.ToArray();
+        _selectedKey = old != null && _items.ContainsKey(old) ? old : keys.FirstOrDefault();
+        if (old != _selectedKey) _mappingHint.Text = "";
         _updating = true;
-        _controllers.BeginUpdate();
-        _controllers.Items.Clear(); foreach (var key in keys) _controllers.Items.Add(key);
-        _controllers.SelectedItem = old != null && _items.ContainsKey(old) ? old : keys.FirstOrDefault();
-        _controllers.EndUpdate();
-        _emptyList.Visible = keys.Length == 0;
-        _controllers.Visible = keys.Length != 0;
-        _updating = false;
-        if (_controllers.SelectedItem == null) { _selectedKey = null; UpdateSelection(null); }
-        else
+        _playerTabs.SuspendLayout();
+        _playerTabs.Controls.Clear();
+        _physicalInput.BeginUpdate();
+        _physicalInput.Items.Clear();
+        foreach (var key in keys) _physicalInput.Items.Add(new ControllerChoice(key, _items[key].Name));
+        if (keys.Length == 0) _physicalInput.Items.Add(T("Nenhum controle conectado", "No controller connected"));
+        _physicalInput.SelectedItem = _selectedKey == null ? null : _physicalInput.Items.Cast<ControllerChoice>().FirstOrDefault(choice => choice.Key == _selectedKey);
+        if (keys.Length == 0) _physicalInput.SelectedIndex = 0;
+        _physicalInput.EndUpdate();
+        for (var index = 0; index < Math.Max(4, keys.Length); index++)
         {
-            _selectedKey = (string)_controllers.SelectedItem;
-            if (old != _selectedKey) _mappingHint.Text = "";
-            UpdateSelection(_items[_selectedKey]);
+            var connected = index < keys.Length;
+            var key = connected ? keys[index] : null;
+            var snapshot = key == null ? null : _items[key];
+            var selected = key != null && key == _selectedKey;
+            if (!connected)
+            {
+                var placeholder = new Panel { Size = new Size(164, 42), Margin = new Padding(0, 0, 8, 0), BackColor = Color.FromArgb(20, 27, 36), BorderStyle = BorderStyle.FixedSingle, AccessibleName = $"{T("Jogador", "Player")} {index + 1}: {T("aguardando controle", "waiting for controller")}" };
+                var title = Label($"{T("JOGADOR", "PLAYER")} {index + 1}", 8.5f, true, Color.FromArgb(135, 151, 169)); title.Dock = DockStyle.Top; title.Height = 19; title.Padding = new Padding(6, 2, 0, 0);
+                var subtitle = Label(T("Aguardando controle", "Waiting for controller"), 7.5f, false, Color.FromArgb(105, 119, 136)); subtitle.Dock = DockStyle.Fill; subtitle.Padding = new Padding(6, 0, 0, 0);
+                placeholder.Controls.Add(subtitle); placeholder.Controls.Add(title); _playerTabs.Controls.Add(placeholder);
+                continue;
+            }
+            var tabText = $"{T("JOGADOR", "PLAYER")} {index + 1}\r\n{snapshot!.Name}";
+            var tab = ActionButton(tabText);
+            tab.Size = new Size(164, 42); tab.Margin = new Padding(0, 0, 8, 0); tab.TextAlign = ContentAlignment.MiddleLeft; tab.Padding = new Padding(9, 0, 4, 0);
+            tab.Font = new Font("Segoe UI", 8.5f, selected ? FontStyle.Bold : FontStyle.Regular); tab.AutoEllipsis = true;
+            tab.Enabled = connected;
+            tab.BackColor = selected ? Color.FromArgb(31, 91, 139) : Color.FromArgb(23, 30, 40);
+            tab.ForeColor = connected ? Color.FromArgb(225, 235, 246) : Color.FromArgb(104, 117, 132);
+            tab.FlatAppearance.BorderColor = selected ? Color.FromArgb(46, 160, 236) : Color.FromArgb(57, 74, 93);
+            tab.FlatAppearance.BorderSize = selected ? 2 : 1;
+            tab.AccessibleName = connected
+                ? $"{T("Jogador", "Player")} {index + 1}: {snapshot!.Name}, {T("saída", "output")} {(snapshot.Output == "ds4" ? "DualShock 4" : "Xbox 360")}"
+                : $"{T("Jogador", "Player")} {index + 1}: {T("aguardando controle", "waiting for controller")}";
+            if (key != null) tab.Click += (_, _) => SelectControllerTab(key);
+            _playerTabs.Controls.Add(tab);
         }
-        _controllers.Invalidate();
+        _playerTabs.ResumeLayout();
+        _updating = false;
+        UpdateSelection(_selectedKey == null ? null : _items[_selectedKey]);
     }
 
-    private void SelectControllerFromList()
+    private void SelectControllerTab(string key)
     {
-        if (_updating || _controllers.SelectedItem is not string key) return;
-        _selectedKey = key; _mappingHint.Text = ""; UpdateSelection(_items.GetValueOrDefault(key)); _controllers.Invalidate();
+        if (_updating || !_items.ContainsKey(key)) return;
+        _selectedKey = key; _mappingHint.Text = ""; RebuildControllerList();
     }
 
     private void UpdateSelection(ControllerSnapshot? snapshot)
     {
         _updating = true;
-        _selectedName.Text = snapshot == null ? T("Selecione um controle", "Select a controller") : T("Entrada: ", "Input: ") + snapshot.Name;
+        _selectedName.Text = snapshot == null ? T("CONTROLE FÍSICO", "PHYSICAL CONTROLLER") : T("CONTROLE FÍSICO · ", "PHYSICAL CONTROLLER · ") + snapshot.Name;
+        _physicalInput.Enabled = snapshot != null;
+        if (snapshot != null) _physicalInput.SelectedItem = _physicalInput.Items.Cast<ControllerChoice>().FirstOrDefault(choice => choice.Key == Key(snapshot));
         _output.Enabled = snapshot != null; _gyro.Enabled = snapshot?.Output == "ds4";
         _output.SelectedIndex = snapshot?.Output == "ds4" ? 1 : 0; _gyro.Checked = snapshot?.GyroEnabled ?? false;
         var fresh = snapshot != null && _lastInput.TryGetValue(Key(snapshot), out var last) && Environment.TickCount64 - last < 1000;
-        _physicalStatus.Text = snapshot == null ? T("Selecione uma entrada física na lista", "Select a physical input in the list") : fresh ? T("● Entrada física conectada · recebendo dados", "● Physical input connected · receiving data") : T("● Entrada física conectada · aguardando dados", "● Physical input connected · waiting for data");
+        _physicalStatus.Text = snapshot == null ? T("Nenhum controle conectado. Conecte um controle ao celular.", "No controller connected. Connect a controller to the phone.") : fresh ? T("● Controle conectado · recebendo dados", "● Controller connected · receiving input") : T("● Controle conectado · aguardando dados", "● Controller connected · waiting for input");
         _physicalStatus.ForeColor = fresh ? Color.FromArgb(92, 218, 154) : Color.FromArgb(144, 159, 177);
         var visible = snapshot == null || fresh ? snapshot : snapshot with { State = GamepadState.Neutral() };
         _diagram.Enabled = snapshot != null;
@@ -407,25 +508,6 @@ public sealed class DashboardForm : Form
         catch (Exception error) { _mappingHint.Text = error.GetBaseException().Message; }
     }
 
-    private void DrawControllerItem(object? sender, DrawItemEventArgs e)
-    {
-        e.DrawBackground();
-        if (e.Index < 0 || e.Index >= _controllers.Items.Count) return;
-        var key = (string)_controllers.Items[e.Index]; if (!_items.TryGetValue(key, out var snapshot)) return;
-        var selected = (e.State & DrawItemState.Selected) != 0;
-        using var brush = new SolidBrush(selected ? Color.FromArgb(43, 62, 82) : Color.FromArgb(23, 30, 40));
-        using var boldFont = new Font(Font, FontStyle.Bold);
-        e.Graphics.FillRectangle(brush, e.Bounds);
-        if (selected)
-        {
-            using var accent = new SolidBrush(Color.FromArgb(105, 183, 255));
-            e.Graphics.FillRectangle(accent, e.Bounds.X, e.Bounds.Y + 6, 3, e.Bounds.Height - 12);
-        }
-        TextRenderer.DrawText(e.Graphics, snapshot.Name, boldFont, new Rectangle(e.Bounds.X + 12, e.Bounds.Y + 10, e.Bounds.Width - 20, 20), Color.White, TextFormatFlags.EndEllipsis);
-        TextRenderer.DrawText(e.Graphics, T($"Controle {e.Index + 1}", $"Controller {e.Index + 1}") + " · " + (snapshot.Output == "ds4" ? "DualShock 4" : "Xbox 360"), Font, new Rectangle(e.Bounds.X + 12, e.Bounds.Y + 32, e.Bounds.Width - 20, 18), Color.FromArgb(150, 170, 190), TextFormatFlags.EndEllipsis);
-        e.DrawFocusRectangle();
-    }
-
     private Panel Card() => new() { BackColor = Color.FromArgb(23, 30, 40), Margin = new Padding(0) };
     private Label Label(string text, float size, bool bold, Color color) => new() { Text = text, Font = new Font("Segoe UI", size, bold ? FontStyle.Bold : FontStyle.Regular), ForeColor = color, BackColor = Color.Transparent, AutoEllipsis = true };
     private Button ActionButton(string text)
@@ -435,6 +517,15 @@ public sealed class DashboardForm : Form
         button.FlatAppearance.MouseOverBackColor = Color.FromArgb(48, 69, 91);
         button.FlatAppearance.MouseDownBackColor = Color.FromArgb(39, 126, 185);
         return button;
+    }
+    private static void DrawComboItem(ComboBox combo, DrawItemEventArgs e)
+    {
+        if (e.Index < 0) return;
+        var selected = (e.State & DrawItemState.Selected) != 0;
+        using var background = new SolidBrush(selected ? Color.FromArgb(43, 62, 82) : Color.FromArgb(31, 40, 52));
+        e.Graphics.FillRectangle(background, e.Bounds);
+        TextRenderer.DrawText(e.Graphics, combo.Items[e.Index]?.ToString() ?? "", e.Font ?? combo.Font, Rectangle.Inflate(e.Bounds, -7, 0), combo.Enabled ? Color.White : Color.FromArgb(144, 159, 177), TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        e.DrawFocusRectangle();
     }
     private string T(string pt, string en) => _english ? en : pt;
     private static string Key(ControllerSnapshot snapshot) => snapshot.SessionId + "/" + snapshot.ControllerId;

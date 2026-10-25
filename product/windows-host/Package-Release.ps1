@@ -13,6 +13,32 @@ function Fetch-Pinned([string]$Url,[string]$Path,[string]$Sha256) {
     if (!(Test-Path -LiteralPath $Path)) { Invoke-WebRequest -Uri $Url -OutFile $Path }
     if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ine $Sha256) { throw ('Dependency checksum failed: ' + [IO.Path]::GetFileName($Path)) }
 }
+function Assert-PackagedDashboard([string]$Executable) {
+    $inputFile = [IO.Path]::GetTempFileName()
+    $outputFile = [IO.Path]::GetTempFileName()
+    $errorFile = [IO.Path]::GetTempFileName()
+    $process = $null
+    try {
+        $process = Start-Process -FilePath $Executable -ArgumentList @('--prepared','--usb','--port','47654') -RedirectStandardInput $inputFile -RedirectStandardOutput $outputFile -RedirectStandardError $errorFile -PassThru
+        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        do {
+            Start-Sleep -Milliseconds 250
+            $process.Refresh()
+            if ($process.HasExited) {
+                $details = ((Get-Content -Raw -LiteralPath $outputFile) + (Get-Content -Raw -LiteralPath $errorFile)).Trim()
+                throw "Packaged dashboard exited before opening (exit $($process.ExitCode)): $details"
+            }
+        } while ($process.MainWindowTitle -ne 'Controller Bridge' -and [DateTime]::UtcNow -lt $deadline)
+        if ($process.MainWindowTitle -ne 'Controller Bridge') { throw 'Packaged dashboard did not create its main window within 15 seconds.' }
+    }
+    finally {
+        if ($process -and !$process.HasExited) {
+            $null = $process.CloseMainWindow()
+            if (!$process.WaitForExit(3000)) { Stop-Process -Id $process.Id -Force }
+        }
+        foreach ($file in @($inputFile,$outputFile,$errorFile)) { if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force } }
+    }
+}
 $clientPackage = Join-Path $cacheRoot 'nefarius.vigem.client.1.21.256.nupkg'
 Fetch-Pinned $dependencies.client.url $clientPackage $dependencies.client.packageSha256
 $driverInstaller = Join-Path $cacheRoot 'ViGEmBus_1.22.0_x64_x86_arm64.exe'
@@ -35,7 +61,7 @@ $packages = @()
 try {
     foreach ($variant in @(@{ Name = 'PT-BR'; Language = 'pt-BR'; Override = 'en'; Marker = 'Padrão: USB'; Opposite = 'Default: USB' }, @{ Name = 'EN'; Language = 'en'; Override = 'pt'; Marker = 'Default: USB'; Opposite = 'Padrão: USB' })) {
         $stage = Join-Path $stagingRoot $variant.Name
-        dotnet publish $projectFile -c Release -r win-x64 --self-contained true --ignore-failed-sources "-p:RuntimeFrameworkVersion=$($dependencies.runtimeVersion)" '-p:PublishTrimmed=false' '-p:PublishSingleFile=true' '-p:IncludeNativeLibrariesForSelfExtract=true' '-p:IncludeAllContentForSelfExtract=true' "-p:DefaultLanguage=$($variant.Language)" '-p:DebugType=None' -o $stage
+        dotnet publish $projectFile -c Release -r win-x64 --self-contained true --ignore-failed-sources "-p:RuntimeFrameworkVersion=$($dependencies.runtimeVersion)" '-p:PublishTrimmed=false' '-p:PublishSingleFile=true' '-p:IncludeNativeLibrariesForSelfExtract=true' "-p:DefaultLanguage=$($variant.Language)" '-p:DebugType=None' -o $stage
         if ($LASTEXITCODE -ne 0) { throw "Publish failed for $($variant.Name)." }
         $executable = Join-Path $stage 'ControllerBridge.exe'
         if (!(Test-Path -LiteralPath $executable) -or (Get-Item -LiteralPath $executable).Length -lt 50MB) { throw 'Expected self-contained single-file executable was not published.' }
@@ -50,6 +76,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $runtimeNotices 'THIRD-PARTY-NOTICES.TXT') -Destination (Join-Path $stage 'ThirdParty\dotNET-Runtime-ThirdPartyNotices.txt')
         New-Item -ItemType Directory -Path (Join-Path $stage 'Installers') | Out-Null
         Copy-Item -LiteralPath $driverInstaller -Destination (Join-Path $stage 'Installers\ViGEmBus_1.22.0_x64_x86_arm64.exe')
+        Assert-PackagedDashboard $executable
         $reportedVersion = & $executable --version
         if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne "Controller Bridge $version") { throw "Unexpected executable version for $($variant.Name)." }
         $help = (& $executable --help) -join "`n"
