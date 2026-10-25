@@ -9,7 +9,7 @@ Connect Bluetooth game controllers paired with an Android phone to virtual Xbox 
 ### Downloads
 
 - **Android app (APK):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-PT-BR-v0.6.1.apk) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-EN-v0.6.1.apk)
-- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-PT-BR-v0.6.1.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-EN-v0.6.1.zip)
+- **Windows app (ZIP):** [Download in Portuguese (Brazil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.2/ControllerBridge-Windows-PT-BR-v0.6.2.zip) · [Download in English](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.2/ControllerBridge-Windows-EN-v0.6.2.zip)
 
 Each app package uses a fixed language: PT-BR or EN. The Windows host can still be switched at launch with `--lang en` or `--lang pt`.
 
@@ -34,7 +34,7 @@ Each connected controller gets an independent profile. You can keep automatic ma
 ### Requirements
 
 - Android 8.0 or later with Bluetooth gamepad support.
-- Windows 11 x64. The Windows 0.6.1 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
+- Windows 11 x64. The Windows 0.6.2 ZIP includes its private .NET runtime inside one EXE and the official client DLL beside it.
 - The official signed ViGEmBus installer and required license notices are included. If the driver is missing, first start asks before opening its visible installer and Windows UAC; cancelling stops startup.
 - For USB: a data USB cable and Android USB debugging. Setup finds Android SDK Platform Tools (`adb`) automatically. If missing, it opens Google's official download page for your terms acceptance and asks where you extracted `adb.exe`; SDK tools are not bundled or downloaded silently.
 
@@ -101,7 +101,7 @@ Conecte controles Bluetooth pareados com um celular Android a controles virtuais
 ### Downloads
 
 - **App Android (APK):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-PT-BR-v0.6.1.apk) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Android-EN-v0.6.1.apk)
-- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-PT-BR-v0.6.1.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.1/ControllerBridge-Windows-EN-v0.6.1.zip)
+- **App Windows (ZIP com EXE):** [Baixar em português (Brasil)](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.2/ControllerBridge-Windows-PT-BR-v0.6.2.zip) · [Baixar em inglês](https://github.com/kauangabrielcardososilva7890-afk/Controller-Bridge/releases/download/v0.6.2/ControllerBridge-Windows-EN-v0.6.2.zip)
 
 Cada pacote do app usa um idioma fixo: PT-BR ou EN. O host Windows ainda pode ser iniciado com `--lang pt` ou `--lang en` para escolher o idioma.
 
@@ -126,7 +126,7 @@ Cada controle conectado recebe um perfil independente. Você pode manter o mapea
 ### Requisitos
 
 - Android 8.0 ou superior com suporte a controles Bluetooth.
-- Windows 11 x64. O ZIP Windows 0.6.1 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
+- Windows 11 x64. O ZIP Windows 0.6.2 inclui o runtime privado do .NET dentro de um EXE e a DLL cliente oficial ao lado dele.
 - O instalador oficial assinado do ViGEmBus e os avisos de licença exigidos estão incluídos. Se faltar o driver, a primeira abertura pergunta antes de mostrar seu instalador e o UAC do Windows; cancelar interrompe a abertura.
 - Para USB: cabo de dados e depuração USB do Android. A preparação localiza Android SDK Platform Tools (`adb`) automaticamente. Se faltar, ela abre a página oficial da Google para seu aceite dos termos e pede onde você extraiu `adb.exe`; as ferramentas SDK não são incluídas nem baixadas silenciosamente.
 

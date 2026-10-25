@@ -208,7 +208,7 @@ public sealed class DashboardForm : Form
         _physicalInput.Items.Add(T("Nenhum controle conectado", "No controller connected")); _physicalInput.SelectedIndex = 0;
         settings.Controls.Add(_physicalInput, 1, 0);
         var outputLabel = Label(T("Saída virtual:", "Virtual output:"), 10, false, ForeColor); outputLabel.Dock = DockStyle.Fill; outputLabel.Padding = new Padding(8, 0, 0, 0); outputLabel.TextAlign = ContentAlignment.MiddleLeft; settings.Controls.Add(outputLabel, 2, 0);
-        ConfigureCombo(_output, T("Saída virtual para o jogo", "Virtual output to the game")); _output.Items.AddRange(["Xbox 360", "DualShock 4"]); _output.SelectedIndexChanged += (_, _) => ChangeOutput(); settings.Controls.Add(_output, 3, 0);
+        ConfigureCombo(_output, T("Saída virtual para o jogo", "Virtual output to the game")); _output.Items.AddRange(["Xbox 360", "DualShock 4"]); _output.SelectionChangeCommitted += (_, _) => ChangeOutput(); settings.Controls.Add(_output, 3, 0);
         _physicalStatus.Dock = DockStyle.Fill; _physicalStatus.Font = new Font("Segoe UI", 8.5f); _physicalStatus.ForeColor = Color.FromArgb(150, 164, 171); _physicalStatus.TextAlign = ContentAlignment.MiddleLeft;
         settings.Controls.Add(_physicalStatus, 1, 1); settings.SetColumnSpan(_physicalStatus, 3);
         rows.Controls.Add(settings, 0, 0);
@@ -454,7 +454,11 @@ public sealed class DashboardForm : Form
         _physicalInput.Enabled = snapshot != null;
         if (snapshot != null) _physicalInput.SelectedItem = _physicalInput.Items.Cast<ControllerChoice>().FirstOrDefault(choice => choice.Key == Key(snapshot));
         _output.Enabled = snapshot != null; _gyro.Enabled = snapshot?.Output == "ds4";
-        _output.SelectedIndex = snapshot?.Output == "ds4" ? 1 : 0; _gyro.Checked = snapshot?.GyroEnabled ?? false;
+        // Native dropdown navigation is tentative until the user commits it. Live input
+        // refreshes must not send CB_SETCURSEL and replace that pending selection.
+        var selectedOutput = snapshot?.Output == "ds4" ? 1 : 0;
+        if (!_output.DroppedDown && _output.SelectedIndex != selectedOutput) _output.SelectedIndex = selectedOutput;
+        _gyro.Checked = snapshot?.GyroEnabled ?? false;
         var fresh = snapshot != null && _lastInput.TryGetValue(Key(snapshot), out var last) && Environment.TickCount64 - last < 1000;
         _physicalStatus.Text = snapshot == null ? T("Nenhum controle conectado. Conecte um controle ao celular.", "No controller connected. Connect a controller to the phone.") : fresh ? T("● Controle conectado · recebendo dados", "● Controller connected · receiving input") : T("● Controle conectado · aguardando dados", "● Controller connected · waiting for input");
         _physicalStatus.ForeColor = fresh ? Color.FromArgb(92, 218, 154) : Color.FromArgb(144, 159, 177);
@@ -514,7 +518,9 @@ public sealed class DashboardForm : Form
         try
         {
             var output = _output.SelectedIndex == 1 ? "ds4" : "xbox360";
-            _host.SetControllerOutput(snapshot, output, output == "ds4" && _gyro.Checked);
+            var gyroEnabled = output == "ds4" && _gyro.Checked;
+            if (snapshot.Output == output && snapshot.GyroEnabled == gyroEnabled) return;
+            _host.SetControllerOutput(snapshot, output, gyroEnabled);
             _mappingHint.Text = T("Perfil atualizado e sincronizado com o celular.", "Profile updated and synced to the phone.");
         }
         catch (Exception error) { UpdateSelection(snapshot); _mappingHint.Text = error.GetBaseException().Message; }
